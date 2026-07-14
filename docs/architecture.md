@@ -50,12 +50,14 @@ An unavailable source is not silently called a match. It is reported as `WARNING
 ## Security boundaries
 
 - Receipt paths are derived from IDs matching `sha256:[a-f0-9]{64}`; Receipt input cannot select a filesystem path.
+- Lock and Receipt reads reject symlinks and non-regular files, stay inside the repository, and are capped at 1 MiB and 4 MiB respectively.
 - Project, affected-code, package, and declaration paths cannot escape the repository.
 - Package names must use registry-style npm names; paths and URLs are rejected.
 - `package.json` and declaration reads are size-bounded.
 - Receipt schemas reject unknown fields, including `matched`, `verified`, or command-shaped additions.
 - No adapter invokes a shell, lifecycle script, package entry point, network request, or LLM.
 - Atomic temporary-file replacement reduces partial writes. v0.1 does not provide cross-process locking.
+- Content hashes detect inconsistent or partially modified evidence; they do not authenticate an author. Someone who can rewrite both a Receipt and the lock can create a new internally valid Receipt, so Git review remains part of the trust model.
 
 ## Deliberate limitations
 

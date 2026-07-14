@@ -53,6 +53,10 @@ The repository's committed example is:
 
 This format is deterministic but is not claimed to implement RFC 8785. Schema v1 rejects all unknown fields rather than treating stored status flags as trustworthy.
 
+Receipt strings and paths use bounded, canonical forms. `evidence.lock` is limited to 1 MiB, each Receipt to 4 MiB, claims to 500 characters, and evidence paths to 4096 characters. Storage files must be regular files rather than symlinks.
+
+Content addressing checks internal consistency, not authorship. Replacing both a Receipt and its lock entry with a newly hashed payload is detectable in Git review but is not prevented cryptographically in v0.1.
+
 ## Meaning of fields
 
 - `claim`: human explanation of why the contract matters. Litmo does not semantically prove it.

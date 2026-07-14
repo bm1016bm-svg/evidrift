@@ -1,8 +1,8 @@
-import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, realpath, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import { canonicalStringify, contentHash, sha256 } from './canonical.js';
-import { assertSafeRelativePath, receiptFileName } from './paths.js';
+import { assertSafeRelativePath, isInside, receiptFileName } from './paths.js';
 import {
   LOCK_SCHEMA_VERSION,
   RECEIPT_SCHEMA_VERSION,
@@ -17,9 +17,44 @@ const LITMO_DIRECTORY = '.litmo';
 const LOCK_FILE = 'evidence.lock';
 const RECEIPTS_DIRECTORY = 'receipts';
 const SHA256_ID = /^sha256:[a-f0-9]{64}$/;
+const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
+const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
+const MAX_LOCK_BYTES = 1024 * 1024;
+const MAX_RECEIPT_BYTES = 4 * 1024 * 1024;
+const MAX_PATH_CHARACTERS = 4096;
+const MAX_SIGNATURE_CHARACTERS = 2 * 1024 * 1024;
 
 export class IntegrityError extends Error {
   override name = 'IntegrityError';
+}
+
+function assertText(value: unknown, label: string, maximum: number): string {
+  if (
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > maximum ||
+    value.includes('\0')
+  ) {
+    throw new IntegrityError(`${label} must contain 1-${maximum} safe text characters.`);
+  }
+  return value;
+}
+
+function assertCanonicalRelativePath(value: string, label: string, allowDot = true): string {
+  const normalized = assertSafeRelativePath(value, label, allowDot);
+  if (normalized !== value) {
+    throw new IntegrityError(`${label} must use canonical forward-slash path syntax.`);
+  }
+  return value;
+}
+
+function isMissing(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === 'object' &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'ENOENT'
+  );
 }
 
 function asRecord(value: unknown, label: string): Record<string, unknown> {
@@ -45,10 +80,11 @@ function parseAffectedCode(value: unknown): AffectedCode {
   const record = asRecord(value, 'affectedCode');
   const expectedKeys = record.line === undefined ? ['path'] : ['line', 'path'];
   assertExactKeys(record, expectedKeys, 'affectedCode');
-  if (typeof record.path !== 'string') {
-    throw new IntegrityError('affectedCode.path must be a string.');
-  }
-  const safePath = assertSafeRelativePath(record.path, 'affectedCode.path', false);
+  const safePath = assertCanonicalRelativePath(
+    assertText(record.path, 'affectedCode.path', MAX_PATH_CHARACTERS),
+    'affectedCode.path',
+    false,
+  );
   if (
     record.line !== undefined &&
     (!Number.isSafeInteger(record.line) || (record.line as number) < 1)
@@ -75,72 +111,99 @@ function parseEvidence(value: unknown): TypeScriptSymbolEvidence {
   if (record.adapter !== 'typescript.symbol') {
     throw new IntegrityError('Only the typescript.symbol adapter is valid in v0.1.');
   }
-  if (
-    typeof record.projectRoot !== 'string' ||
-    typeof record.symbol !== 'string' ||
-    typeof record.expectedSignature !== 'string' ||
-    typeof record.signatureHash !== 'string' ||
-    (record.parameter !== undefined && typeof record.parameter !== 'string')
-  ) {
+  if (typeof record.signatureHash !== 'string') {
     throw new IntegrityError('Evidence contains invalid field types.');
+  }
+  const projectRoot = assertText(record.projectRoot, 'evidence.projectRoot', MAX_PATH_CHARACTERS);
+  const symbol = assertText(record.symbol, 'evidence.symbol', 256);
+  const expectedSignature = assertText(
+    record.expectedSignature,
+    'evidence.expectedSignature',
+    MAX_SIGNATURE_CHARACTERS,
+  );
+  const parameter =
+    record.parameter === undefined
+      ? undefined
+      : assertText(record.parameter, 'evidence.parameter', 256);
+  if (!IDENTIFIER.test(symbol) || (parameter !== undefined && !IDENTIFIER.test(parameter))) {
+    throw new IntegrityError('Evidence symbol and parameter must be TypeScript identifiers.');
   }
   const packageRecord = asRecord(record.package, 'evidence.package');
   assertExactKeys(packageRecord, ['name', 'resolvedPath', 'version'], 'evidence.package');
-  if (
-    typeof packageRecord.name !== 'string' ||
-    typeof packageRecord.version !== 'string' ||
-    typeof packageRecord.resolvedPath !== 'string'
-  ) {
-    throw new IntegrityError('Evidence package fields must be strings.');
+  const packageName = assertText(packageRecord.name, 'evidence.package.name', 214);
+  const packageVersion = assertText(packageRecord.version, 'evidence.package.version', 256);
+  const resolvedPath = assertText(
+    packageRecord.resolvedPath,
+    'evidence.package.resolvedPath',
+    MAX_PATH_CHARACTERS,
+  );
+  if (!PACKAGE_NAME.test(packageName)) {
+    throw new IntegrityError('Evidence package name must be a registry-style npm package name.');
   }
   if (!SHA256_ID.test(record.signatureHash)) {
     throw new IntegrityError('Evidence signatureHash must be a full sha256 hash.');
   }
-  const calculatedSignatureHash = `sha256:${sha256(record.expectedSignature)}`;
+  const calculatedSignatureHash = `sha256:${sha256(expectedSignature)}`;
   if (calculatedSignatureHash !== record.signatureHash) {
     throw new IntegrityError('Expected signature does not match its signatureHash.');
   }
 
   return {
     adapter: 'typescript.symbol',
-    projectRoot: assertSafeRelativePath(record.projectRoot, 'evidence.projectRoot'),
+    projectRoot: assertCanonicalRelativePath(projectRoot, 'evidence.projectRoot'),
     package: {
-      name: packageRecord.name,
-      version: packageRecord.version,
-      resolvedPath: assertSafeRelativePath(
-        packageRecord.resolvedPath,
+      name: packageName,
+      version: packageVersion,
+      resolvedPath: assertCanonicalRelativePath(
+        resolvedPath,
         'evidence.package.resolvedPath',
         false,
       ),
     },
-    symbol: record.symbol,
-    ...(record.parameter === undefined ? {} : { parameter: record.parameter }),
-    expectedSignature: record.expectedSignature,
+    symbol,
+    ...(parameter === undefined ? {} : { parameter }),
+    expectedSignature,
     signatureHash: record.signatureHash,
+  };
+}
+
+function parseReceiptPayload(value: unknown): ReceiptPayload {
+  const record = asRecord(value, 'receipt payload');
+  assertExactKeys(
+    record,
+    ['affectedCode', 'claim', 'evidence', 'schemaVersion'],
+    'receipt payload',
+  );
+  if (record.schemaVersion !== RECEIPT_SCHEMA_VERSION) {
+    throw new IntegrityError('Unsupported receipt schemaVersion.');
+  }
+  const claim = assertText(record.claim, 'Receipt claim', 500);
+  if (claim.trim() !== claim) {
+    throw new IntegrityError('Receipt claim must not have leading or trailing whitespace.');
+  }
+  return {
+    schemaVersion: RECEIPT_SCHEMA_VERSION,
+    claim,
+    affectedCode: parseAffectedCode(record.affectedCode),
+    evidence: parseEvidence(record.evidence),
   };
 }
 
 export function parseReceipt(value: unknown, expectedId?: string): Receipt {
   const record = asRecord(value, 'receipt');
   assertExactKeys(record, ['affectedCode', 'claim', 'evidence', 'id', 'schemaVersion'], 'receipt');
-  if (record.schemaVersion !== RECEIPT_SCHEMA_VERSION) {
-    throw new IntegrityError('Unsupported receipt schemaVersion.');
-  }
   if (typeof record.id !== 'string' || !SHA256_ID.test(record.id)) {
     throw new IntegrityError('Receipt ID must be a full sha256 content hash.');
   }
   if (expectedId !== undefined && record.id !== expectedId) {
     throw new IntegrityError('Receipt ID does not match evidence.lock.');
   }
-  if (typeof record.claim !== 'string' || record.claim.length === 0) {
-    throw new IntegrityError('Receipt claim must be a non-empty string.');
-  }
-  const payload: ReceiptPayload = {
-    schemaVersion: RECEIPT_SCHEMA_VERSION,
+  const payload = parseReceiptPayload({
+    affectedCode: record.affectedCode,
     claim: record.claim,
-    affectedCode: parseAffectedCode(record.affectedCode),
-    evidence: parseEvidence(record.evidence),
-  };
+    evidence: record.evidence,
+    schemaVersion: record.schemaVersion,
+  });
   if (contentHash(payload) !== record.id) {
     throw new IntegrityError('Receipt content hash mismatch.');
   }
@@ -174,6 +237,74 @@ function paths(repoRoot: string): { litmo: string; lock: string; receipts: strin
   };
 }
 
+async function assertSafeDirectory(
+  repoRoot: string,
+  directory: string,
+  label: string,
+): Promise<void> {
+  const metadata = await lstat(directory);
+  if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
+    throw new IntegrityError(`${label} must be a real directory, not a symlink.`);
+  }
+  if (!isInside(path.resolve(repoRoot), await realpath(directory))) {
+    throw new IntegrityError(`${label} resolves outside the repository.`);
+  }
+}
+
+async function ensureSafeDirectory(
+  repoRoot: string,
+  directory: string,
+  label: string,
+  create: boolean,
+): Promise<void> {
+  try {
+    await assertSafeDirectory(repoRoot, directory, label);
+  } catch (error) {
+    if (!create || !isMissing(error)) {
+      throw error;
+    }
+    await mkdir(directory);
+    await assertSafeDirectory(repoRoot, directory, label);
+  }
+}
+
+async function storagePaths(
+  repoRoot: string,
+  create: boolean,
+): Promise<{ litmo: string; lock: string; receipts: string }> {
+  const target = paths(repoRoot);
+  await ensureSafeDirectory(repoRoot, target.litmo, '.litmo', create);
+  await ensureSafeDirectory(repoRoot, target.receipts, '.litmo/receipts', create);
+  return target;
+}
+
+async function readUntrustedJson(
+  repoRoot: string,
+  filePath: string,
+  label: string,
+  maximumBytes: number,
+): Promise<unknown> {
+  const metadata = await lstat(filePath);
+  if (!metadata.isFile() || metadata.isSymbolicLink()) {
+    throw new IntegrityError(`${label} must be a regular file, not a symlink.`);
+  }
+  const resolved = await realpath(filePath);
+  if (!isInside(path.resolve(repoRoot), resolved)) {
+    throw new IntegrityError(`${label} resolves outside the repository.`);
+  }
+  if (metadata.size > maximumBytes) {
+    throw new IntegrityError(`${label} exceeds the ${maximumBytes}-byte limit.`);
+  }
+  try {
+    return JSON.parse(await readFile(resolved, 'utf8')) as unknown;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      throw new IntegrityError(`${label} is not valid JSON.`);
+    }
+    throw error;
+  }
+}
+
 async function atomicWrite(filePath: string, content: string): Promise<void> {
   const temporary = `${filePath}.tmp-${process.pid}-${Date.now()}`;
   await writeFile(temporary, content, { encoding: 'utf8', flag: 'wx' });
@@ -181,15 +312,16 @@ async function atomicWrite(filePath: string, content: string): Promise<void> {
 }
 
 export async function initializeRepository(repoRoot: string): Promise<boolean> {
-  const target = paths(repoRoot);
-  await mkdir(target.receipts, { recursive: true });
+  const target = await storagePaths(repoRoot, true);
   try {
-    await stat(target.lock);
-    parseLock(JSON.parse(await readFile(target.lock, 'utf8')) as unknown);
+    parseLock(await readUntrustedJson(repoRoot, target.lock, 'evidence.lock', MAX_LOCK_BYTES));
     return false;
   } catch (error) {
     if (error instanceof IntegrityError) {
       throw error;
+    }
+    if (!isMissing(error)) {
+      throw new IntegrityError('Existing evidence.lock could not be safely read.');
     }
     const initial: EvidenceLock = { schemaVersion: LOCK_SCHEMA_VERSION, receipts: [] };
     await atomicWrite(target.lock, `${canonicalStringify(initial)}\n`);
@@ -198,50 +330,57 @@ export async function initializeRepository(repoRoot: string): Promise<boolean> {
 }
 
 export async function readEvidenceLock(repoRoot: string): Promise<EvidenceLock> {
-  const lockPath = paths(repoRoot).lock;
   try {
-    return parseLock(JSON.parse(await readFile(lockPath, 'utf8')) as unknown);
+    const target = await storagePaths(repoRoot, false);
+    return parseLock(
+      await readUntrustedJson(repoRoot, target.lock, 'evidence.lock', MAX_LOCK_BYTES),
+    );
   } catch (error) {
-    if (error instanceof IntegrityError || error instanceof SyntaxError) {
-      throw new IntegrityError(
-        error instanceof SyntaxError ? 'evidence.lock is not valid JSON.' : error.message,
-      );
+    if (error instanceof IntegrityError) {
+      throw error;
     }
-    throw new IntegrityError('Missing .litmo/evidence.lock; run `litmo init`.');
+    throw new IntegrityError('Missing or unreadable .litmo/evidence.lock; run `litmo init`.');
   }
 }
 
 export async function readReceipt(repoRoot: string, receiptId: string): Promise<Receipt> {
   const fileName = receiptFileName(receiptId);
-  const filePath = path.join(paths(repoRoot).receipts, fileName);
   try {
-    return parseReceipt(JSON.parse(await readFile(filePath, 'utf8')) as unknown, receiptId);
+    const target = await storagePaths(repoRoot, false);
+    const filePath = path.join(target.receipts, fileName);
+    return parseReceipt(
+      await readUntrustedJson(repoRoot, filePath, `Receipt ${receiptId}`, MAX_RECEIPT_BYTES),
+      receiptId,
+    );
   } catch (error) {
-    if (error instanceof IntegrityError || error instanceof SyntaxError) {
-      throw new IntegrityError(
-        error instanceof SyntaxError ? `Receipt ${receiptId} is not valid JSON.` : error.message,
-      );
+    if (error instanceof IntegrityError) {
+      throw error;
     }
-    throw new IntegrityError(`Receipt file is missing for ${receiptId}.`);
+    throw new IntegrityError(`Receipt file is missing or unreadable for ${receiptId}.`);
   }
 }
 
 export async function writeReceipt(repoRoot: string, payload: ReceiptPayload): Promise<Receipt> {
-  const target = paths(repoRoot);
-  const id = contentHash(payload);
-  const receipt: Receipt = { id, ...payload };
+  const target = await storagePaths(repoRoot, false);
+  const validatedPayload = parseReceiptPayload(payload);
+  const id = contentHash(validatedPayload);
+  const receipt: Receipt = { id, ...validatedPayload };
   const receiptPath = path.join(target.receipts, receiptFileName(id));
 
   try {
-    const existing = parseReceipt(JSON.parse(await readFile(receiptPath, 'utf8')) as unknown, id);
+    const existing = parseReceipt(
+      await readUntrustedJson(repoRoot, receiptPath, `Receipt ${id}`, MAX_RECEIPT_BYTES),
+      id,
+    );
     if (canonicalStringify(existing) !== canonicalStringify(receipt)) {
       throw new IntegrityError(`Existing receipt file for ${id} is inconsistent.`);
     }
   } catch (error) {
-    if (error instanceof IntegrityError || error instanceof SyntaxError) {
-      throw error instanceof SyntaxError
-        ? new IntegrityError(`Existing receipt ${id} is not valid JSON.`)
-        : error;
+    if (error instanceof IntegrityError) {
+      throw error;
+    }
+    if (!isMissing(error)) {
+      throw new IntegrityError(`Existing receipt ${id} could not be safely read.`);
     }
     await atomicWrite(receiptPath, `${canonicalStringify(receipt)}\n`);
   }

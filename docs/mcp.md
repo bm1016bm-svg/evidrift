@@ -51,7 +51,7 @@ The generated `.mcp.json` has this shape:
 }
 ```
 
-Run the command from the target repository so the server inherits the correct working directory. Source: [Anthropic Claude Code MCP documentation](https://docs.anthropic.com/en/docs/claude-code/mcp).
+Run the command from the target repository so the server inherits the correct working directory. Source: [Anthropic Claude Code MCP documentation](https://code.claude.com/docs/en/mcp).
 
 ## Cursor
 

@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
-import { writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
@@ -102,5 +103,49 @@ test('tampered receipt is rejected before source revalidation', async () => {
   await writeFile(receiptPath, `${JSON.stringify(tampered)}\n`);
   const results = await checkRepository(fixture.root);
   assert.equal(results[0]?.status, 'integrity_error');
+  assert.equal(checkExitCode(results), 2);
+});
+
+test('oversized untrusted receipt is rejected before it is read', async () => {
+  const { fixture, receipt } = await recordFixture();
+  const receiptPath = path.join(
+    fixture.root,
+    '.litmo',
+    'receipts',
+    `${receipt.id.slice('sha256:'.length)}.json`,
+  );
+  await writeFile(receiptPath, Buffer.alloc(4 * 1024 * 1024 + 1, 0x20));
+  const results = await checkRepository(fixture.root);
+  assert.equal(results[0]?.status, 'integrity_error');
+  assert.match(results[0]?.message ?? '', /exceeds the 4194304-byte limit/);
+  assert.equal(checkExitCode(results), 2);
+});
+
+test('receipt directory symlink is rejected instead of following untrusted storage', async (t) => {
+  const { fixture, receipt } = await recordFixture();
+  const receiptsPath = path.join(fixture.root, '.litmo', 'receipts');
+  const outside = await mkdtemp(path.join(tmpdir(), 'litmo-outside-'));
+  t.after(async () => rm(outside, { recursive: true, force: true }));
+  const outsideReceipt = path.join(outside, `${receipt.id.slice('sha256:'.length)}.json`);
+  await writeFile(outsideReceipt, `${JSON.stringify(receipt)}\n`);
+  await rm(receiptsPath, { recursive: true });
+  try {
+    await symlink(outside, receiptsPath, process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (error) {
+    if (
+      error !== null &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'EPERM'
+    ) {
+      t.skip('The current Windows account cannot create symlinks.');
+      return;
+    }
+    throw error;
+  }
+
+  const results = await checkRepository(fixture.root);
+  assert.equal(results[0]?.status, 'integrity_error');
+  assert.match(results[0]?.message ?? '', /.litmo\/receipts must be a real directory/);
   assert.equal(checkExitCode(results), 2);
 });

@@ -1,4 +1,4 @@
-.legacy-pdf-reader-backup/
+.local/
 dist/
 node_modules/
 package-lock.json

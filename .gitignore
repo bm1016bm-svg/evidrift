@@ -6,5 +6,5 @@ coverage/
 *.log
 .DS_Store
 
-# Local-only preservation of the previous PDF Reader repository.
-.legacy-pdf-reader-backup/
+# Local-only preservation and verification output.
+.local/

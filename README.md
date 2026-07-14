@@ -128,6 +128,8 @@ The MCP surface exposes `litmo_record`. It accepts a claim and evidence locator,
 4. Resolves the installed dependency without executing package code or shell commands.
 5. Recomputes the TypeScript signature and classifies integrity, source drift, semantic support, and runtime correctness separately.
 
+Content hashes validate internal consistency, not authorship. Review changes to both `.litmo/evidence.lock` and `.litmo/receipts/` in Git; v0.1 does not sign Receipts.
+
 See [Architecture](docs/architecture.md) for the boundary details and exit policy.
 
 ## Development
