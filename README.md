@@ -1,5 +1,7 @@
 # Litmo
 
+![Litmo — AI dependency lockfile](docs/assets/litmo-hero.png)
+
 > **Litmo: The lockfile for AI assumptions.**
 
 AI can write code against a dependency contract that changes tomorrow. Litmo records that contract in the repository, then checks the installed dependency again before merge.
