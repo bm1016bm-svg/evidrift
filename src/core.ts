@@ -1,0 +1,218 @@
+import { realpath } from 'node:fs/promises';
+import path from 'node:path';
+
+import {
+  AdapterError,
+  ContractMismatchError,
+  resolveTypeScriptSymbol,
+} from './adapter/typescript-symbol.js';
+import { relativeToRepo, resolveInside } from './paths.js';
+import {
+  IntegrityError,
+  initializeRepository,
+  readEvidenceLock,
+  readReceipt,
+  writeReceipt,
+} from './storage.js';
+import {
+  RECEIPT_SCHEMA_VERSION,
+  type CheckResult,
+  type Receipt,
+  type ReceiptPayload,
+  type RecordInput,
+} from './types.js';
+
+export async function initLitmo(repoRoot: string): Promise<boolean> {
+  return initializeRepository(await realpath(repoRoot));
+}
+
+function validateText(value: string, label: string, maximum: number): void {
+  if (value.trim().length === 0 || value.length > maximum || value.includes('\0')) {
+    throw new Error(`${label} must contain 1-${maximum} safe text characters.`);
+  }
+}
+
+export async function recordEvidence(input: RecordInput): Promise<Receipt> {
+  validateText(input.claim, 'Claim', 500);
+  const repoRoot = await realpath(input.repoRoot);
+  const projectRoot = await realpath(input.projectRoot);
+  if (resolveInside(repoRoot, projectRoot, 'Project root') !== projectRoot) {
+    throw new Error('Project root resolution is inconsistent.');
+  }
+  const projectRelative = relativeToRepo(repoRoot, projectRoot);
+  const source = await resolveTypeScriptSymbol({
+    repoRoot,
+    projectRoot,
+    packageName: input.packageName,
+    symbol: input.symbol,
+    ...(input.parameter === undefined ? {} : { parameter: input.parameter }),
+  });
+  if (input.parameter !== undefined && source.parameterPresent !== true) {
+    throw new AdapterError(`Parameter ${input.parameter} was not found on ${input.symbol}.`);
+  }
+  const payload: ReceiptPayload = {
+    schemaVersion: RECEIPT_SCHEMA_VERSION,
+    claim: input.claim.trim(),
+    affectedCode: input.affectedCode,
+    evidence: {
+      adapter: 'typescript.symbol',
+      projectRoot: projectRelative,
+      package: {
+        name: source.packageName,
+        version: source.packageVersion,
+        resolvedPath: source.resolvedPath,
+      },
+      symbol: source.symbol,
+      ...(source.parameter === undefined ? {} : { parameter: source.parameter }),
+      expectedSignature: source.signature,
+      signatureHash: source.signatureHash,
+    },
+  };
+  return writeReceipt(repoRoot, payload);
+}
+
+async function checkReceipt(repoRoot: string, receipt: Receipt): Promise<CheckResult> {
+  const evidence = receipt.evidence;
+  try {
+    const projectRoot = await realpath(
+      resolveInside(repoRoot, evidence.projectRoot, 'Project root'),
+    );
+    const current = await resolveTypeScriptSymbol({
+      repoRoot,
+      projectRoot,
+      packageName: evidence.package.name,
+      symbol: evidence.symbol,
+      ...(evidence.parameter === undefined ? {} : { parameter: evidence.parameter }),
+    });
+
+    const common = {
+      receiptId: receipt.id,
+      claim: receipt.claim,
+      expectedSignature: evidence.expectedSignature,
+      currentSignature: current.signature,
+      affectedCode: receipt.affectedCode,
+      expectedPackageVersion: evidence.package.version,
+      currentPackageVersion: current.packageVersion,
+      expectedResolvedPath: evidence.package.resolvedPath,
+      currentResolvedPath: current.resolvedPath,
+    };
+
+    if (current.signatureHash !== evidence.signatureHash) {
+      return {
+        ...common,
+        status: 'contract_mismatch',
+        blocking: true,
+        message: 'Deterministic TypeScript signature mismatch.',
+      };
+    }
+
+    if (
+      current.packageVersion !== evidence.package.version ||
+      current.resolvedPath !== evidence.package.resolvedPath
+    ) {
+      return {
+        ...common,
+        status: 'source_changed',
+        blocking: false,
+        message: 'Source identity changed, but the deterministic signature still matches.',
+      };
+    }
+
+    return {
+      ...common,
+      status: 'pass',
+      blocking: false,
+      message: 'Deterministic TypeScript signature matches.',
+    };
+  } catch (error) {
+    if (error instanceof ContractMismatchError) {
+      return {
+        receiptId: receipt.id,
+        status: 'contract_mismatch',
+        blocking: true,
+        claim: receipt.claim,
+        expectedSignature: evidence.expectedSignature,
+        currentSignature: error.currentSignature,
+        affectedCode: receipt.affectedCode,
+        expectedPackageVersion: evidence.package.version,
+        expectedResolvedPath: evidence.package.resolvedPath,
+        message: `Deterministic TypeScript contract mismatch: ${error.message}`,
+      };
+    }
+    return {
+      receiptId: receipt.id,
+      status: 'unverifiable',
+      blocking: false,
+      claim: receipt.claim,
+      expectedSignature: evidence.expectedSignature,
+      affectedCode: receipt.affectedCode,
+      expectedPackageVersion: evidence.package.version,
+      expectedResolvedPath: evidence.package.resolvedPath,
+      message: `Source could not be revalidated: ${error instanceof Error ? error.message : String(error)}`,
+    };
+  }
+}
+
+export async function checkRepository(repoRootInput: string): Promise<CheckResult[]> {
+  const repoRoot = await realpath(repoRootInput);
+  let lock;
+  try {
+    lock = await readEvidenceLock(repoRoot);
+  } catch (error) {
+    return [
+      {
+        receiptId: '(evidence.lock)',
+        status: 'integrity_error',
+        blocking: true,
+        message: error instanceof Error ? error.message : String(error),
+      },
+    ];
+  }
+
+  const results: CheckResult[] = [];
+  for (const receiptId of lock.receipts) {
+    try {
+      const receipt = await readReceipt(repoRoot, receiptId);
+      results.push(await checkReceipt(repoRoot, receipt));
+    } catch (error) {
+      results.push({
+        receiptId,
+        status: 'integrity_error',
+        blocking: true,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  return results;
+}
+
+export async function explainEvidence(
+  repoRootInput: string,
+  receiptId: string,
+): Promise<CheckResult> {
+  const repoRoot = await realpath(repoRootInput);
+  const lock = await readEvidenceLock(repoRoot);
+  if (!lock.receipts.includes(receiptId)) {
+    throw new IntegrityError(`Receipt ${receiptId} is not referenced by evidence.lock.`);
+  }
+  const receipt = await readReceipt(repoRoot, receiptId);
+  return checkReceipt(repoRoot, receipt);
+}
+
+export function checkExitCode(results: readonly CheckResult[]): number {
+  if (results.some((result) => result.status === 'integrity_error')) {
+    return 2;
+  }
+  if (results.some((result) => result.status === 'contract_mismatch')) {
+    return 1;
+  }
+  return 0;
+}
+
+export function affectedCodeLabel(pathValue: string, line?: number): string {
+  return line === undefined ? pathValue : `${pathValue}:${line}`;
+}
+
+export function resolveCliProjectRoot(repoRoot: string, project: string): string {
+  return resolveInside(path.resolve(repoRoot), project, 'Project root');
+}

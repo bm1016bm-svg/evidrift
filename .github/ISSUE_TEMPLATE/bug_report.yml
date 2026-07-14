@@ -1,0 +1,34 @@
+name: Bug report
+description: Report reproducible incorrect Litmo behavior.
+title: 'bug: '
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not disclose vulnerabilities here; follow SECURITY.md.
+  - type: input
+    id: version
+    attributes:
+      label: Litmo version or commit
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Include commands, fixture declarations, and actual output without secrets.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Node.js version, npm version, and package-manager layout.
+    validations:
+      required: true

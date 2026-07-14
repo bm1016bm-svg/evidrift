@@ -1,0 +1,9 @@
+{
+  "name": "@litmo/signature-drift-demo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@litmo/demo-contract": "file:../fixture-package"
+  }
+}

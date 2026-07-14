@@ -1,0 +1,48 @@
+{
+  "name": "litmo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Version control for the why behind your code.",
+  "license": "MPL-2.0",
+  "type": "module",
+  "bin": {
+    "litmo": "dist/src/cli.js",
+    "litmo-mcp": "dist/src/mcp.js"
+  },
+  "exports": {
+    ".": "./dist/src/index.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "packageManager": "npm@11.6.2",
+  "workspaces": [
+    "examples/signature-drift/app",
+    "examples/signature-drift/fixture-package"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "node dist/src/cli.js check",
+    "demo": "node scripts/demo.mjs run",
+    "demo:setup": "node scripts/demo.mjs setup",
+    "demo:drift": "node scripts/demo.mjs drift",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "lint": "eslint src tests --max-warnings 0",
+    "smoke": "node dist/tests/smoke.js",
+    "test": "npm run build && node --test \"dist/tests/**/*.test.js\" && npm run smoke",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run check"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
+    "typescript": "5.9.3",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.13.3",
+    "eslint": "10.7.0",
+    "prettier": "3.9.5",
+    "typescript-eslint": "8.64.0"
+  }
+}

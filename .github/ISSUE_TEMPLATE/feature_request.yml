@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a narrowly scoped, deterministic Litmo improvement.
+title: 'proposal: '
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What unsupported deterministic contract needs revalidation?
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Proposed evidence and recomputation
+      description: Define the source, canonical fields, deterministic comparison, and CI policy.
+    validations:
+      required: true
+  - type: textarea
+    id: trust
+    attributes:
+      label: Trust and safety impact
+      description: Explain untrusted-input behavior and why no arbitrary execution or LLM judge is needed.
+    validations:
+      required: true
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This can be tested without paid APIs, secrets, or a Litmo backend.
+          required: true

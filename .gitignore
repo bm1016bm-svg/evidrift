@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+.litmo-demo/
+*.tsbuildinfo
+*.log
+.DS_Store
+
+# Local-only preservation of the previous PDF Reader repository.
+.legacy-pdf-reader-backup/

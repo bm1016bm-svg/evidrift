@@ -1,0 +1,5 @@
+.legacy-pdf-reader-backup/
+dist/
+node_modules/
+package-lock.json
+.litmo/receipts/*.json
