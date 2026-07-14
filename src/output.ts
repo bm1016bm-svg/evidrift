@@ -1,8 +1,34 @@
+import { Chalk, type ChalkInstance } from 'chalk';
+
 import { affectedCodeLabel } from './core.js';
+import type { DemoResult } from './demo.js';
 import { escapeOutputText } from './text.js';
 import type { CheckResult, Receipt } from './types.js';
 
-function statusLabel(result: CheckResult): string {
+export interface RenderOptions {
+  interactive?: boolean;
+}
+
+function terminalStyle(options: RenderOptions): ChalkInstance {
+  return new Chalk({ level: options.interactive === true ? 1 : 0 });
+}
+
+function statusLabel(result: CheckResult, options: RenderOptions): string {
+  const style = terminalStyle(options);
+  if (options.interactive === true) {
+    switch (result.status) {
+      case 'pass':
+        return style.green.bold('✅ PASS');
+      case 'source_changed':
+        return style.yellow.bold('⚠ WARNING source_changed');
+      case 'contract_mismatch':
+        return style.red.bold('❌ FAIL contract_mismatch');
+      case 'integrity_error':
+        return style.red.bold('❌ FAIL evidence_integrity');
+      case 'unverifiable':
+        return style.yellow.bold('⚠ WARNING unverifiable');
+    }
+  }
   switch (result.status) {
     case 'pass':
       return 'PASS';
@@ -17,10 +43,12 @@ function statusLabel(result: CheckResult): string {
   }
 }
 
-export function renderRecord(receipt: Receipt): string {
+export function renderRecord(receipt: Receipt, options: RenderOptions = {}): string {
   const receiptId = escapeOutputText(receipt.id);
+  const recorded =
+    options.interactive === true ? terminalStyle(options).green.bold('✅ RECORDED') : 'RECORDED';
   return [
-    `RECORDED ${receiptId}`,
+    `${recorded} ${receiptId}`,
     `Claim: ${escapeOutputText(receipt.claim)}`,
     `Expected signature: ${escapeOutputText(receipt.evidence.expectedSignature)}`,
     `Affected code location: ${escapeOutputText(affectedCodeLabel(receipt.affectedCode.path, receipt.affectedCode.line))}`,
@@ -30,10 +58,10 @@ export function renderRecord(receipt: Receipt): string {
   ].join('\n');
 }
 
-export function renderResult(result: CheckResult): string {
+export function renderResult(result: CheckResult, options: RenderOptions = {}): string {
   const receiptId = escapeOutputText(result.receiptId);
   const lines = [
-    `${statusLabel(result)} ${receiptId}`,
+    `${statusLabel(result, options)} ${receiptId}`,
     `Message: ${escapeOutputText(result.message)}`,
   ];
   if (result.claim !== undefined) {
@@ -84,7 +112,7 @@ export function renderResult(result: CheckResult): string {
   return lines.join('\n');
 }
 
-export function renderCheck(results: readonly CheckResult[]): string {
+export function renderCheck(results: readonly CheckResult[], options: RenderOptions = {}): string {
   const pass = results.filter((result) => result.status === 'pass').length;
   const warnings = results.filter(
     (result) => result.status === 'source_changed' || result.status === 'unverifiable',
@@ -92,11 +120,23 @@ export function renderCheck(results: readonly CheckResult[]): string {
   const failures = results.filter(
     (result) => result.status === 'contract_mismatch' || result.status === 'integrity_error',
   ).length;
-  const body = results.length === 0 ? ['PASS no receipts'] : results.map(renderResult);
-  return [...body, `Summary: ${pass} pass, ${warnings} warning, ${failures} fail`].join('\n\n');
+  const style = terminalStyle(options);
+  const body =
+    results.length === 0
+      ? [
+          options.interactive === true
+            ? style.green.bold('✅ PASS no receipts')
+            : 'PASS no receipts',
+        ]
+      : results.map((result) => renderResult(result, options));
+  const summary =
+    options.interactive === true
+      ? `Summary: ${style.green(`✅ ${pass} pass`)}  ${style.yellow(`⚠ ${warnings} warning`)}  ${style.red(`❌ ${failures} fail`)}`
+      : `Summary: ${pass} pass, ${warnings} warning, ${failures} fail`;
+  return [...body, summary].join('\n\n');
 }
 
-export function renderExplain(result: CheckResult): string {
+export function renderExplain(result: CheckResult, options: RenderOptions = {}): string {
   const integrity = result.status === 'integrity_error' ? 'invalid' : 'valid';
   const sourceDrift =
     result.status === 'source_changed'
@@ -111,11 +151,41 @@ export function renderExplain(result: CheckResult): string {
         ? 'deterministic contract match; free-text claim not semantically proven'
         : 'not established';
   return [
-    renderResult(result),
+    renderResult(result, options),
     '',
     `Evidence integrity: ${integrity}`,
     `Source drift: ${sourceDrift}`,
     `Semantic support: ${semanticSupport}`,
     'Runtime correctness: not evaluated by Litmo',
+  ].join('\n');
+}
+
+export function renderDemo(result: DemoResult, options: RenderOptions = {}): string {
+  const style = terminalStyle(options);
+  const title =
+    options.interactive === true
+      ? style.cyan.bold('⚡ Litmo signature-drift demo')
+      : 'Litmo signature-drift demo';
+  const section = (value: string): string =>
+    options.interactive === true ? style.cyan.bold(value) : value;
+  const caught =
+    options.interactive === true
+      ? style.red.bold('❌ Litmo caught the dependency contract drift before merge.')
+      : 'Litmo caught the dependency contract drift before merge.';
+  return [
+    title,
+    `Workspace: ${escapeOutputText(result.workspace)}`,
+    '',
+    section('1/3 Evidence recorded'),
+    renderRecord(result.receipt, options),
+    '',
+    section('2/3 Baseline contract'),
+    renderCheck(result.baseline, options),
+    '',
+    section('3/3 Dependency signature changed on purpose'),
+    renderCheck(result.drift, options),
+    '',
+    caught,
+    'Next: inspect the generated .litmo-demo/signature-drift workspace or run `litmo demo` again.',
   ].join('\n');
 }

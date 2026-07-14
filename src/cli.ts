@@ -11,8 +11,10 @@ import {
   recordEvidence,
   resolveCliProjectRoot,
 } from './core.js';
+import { runSignatureDriftDemo } from './demo.js';
 import { assertSafeRelativePath } from './paths.js';
-import { renderCheck, renderExplain, renderRecord, renderResult } from './output.js';
+import { renderCheck, renderDemo, renderExplain, renderRecord, renderResult } from './output.js';
+import { interactiveTerminalEnabled, withTerminalProgress } from './terminal.js';
 import { escapeOutputText } from './text.js';
 import { LITMO_VERSION, type AffectedCode } from './types.js';
 
@@ -25,6 +27,7 @@ Usage:
   litmo check [--root <repo>]
   litmo diff [--root <repo>]
   litmo explain <receipt-id> [--root <repo>]
+  litmo demo [--root <directory>]
 
 Exit codes for check: 0 match/warning, 1 contract mismatch, 2 evidence integrity error.`;
 
@@ -105,6 +108,7 @@ function parseAffectedCode(value: string): AffectedCode {
 
 export async function runCli(argv: string[]): Promise<number> {
   const parsed = parseArguments(argv);
+  const renderOptions = { interactive: interactiveTerminalEnabled() };
   if (parsed.version) {
     console.log(LITMO_VERSION);
     return 0;
@@ -157,7 +161,7 @@ export async function runCli(argv: string[]): Promise<number> {
         claim,
         affectedCode: parseAffectedCode(affected),
       });
-      console.log(renderRecord(receipt));
+      console.log(renderRecord(receipt, renderOptions));
       return 0;
     }
     case 'check': {
@@ -165,8 +169,10 @@ export async function runCli(argv: string[]): Promise<number> {
       if (parsed.positionals.length > 0) {
         throw new Error('litmo check does not accept positional arguments.');
       }
-      const results = await checkRepository(repoRoot);
-      console.log(renderCheck(results));
+      const results = await withTerminalProgress('Revalidating Litmo evidence…', () =>
+        checkRepository(repoRoot),
+      );
+      console.log(renderCheck(results, renderOptions));
       return checkExitCode(results);
     }
     case 'diff': {
@@ -174,10 +180,14 @@ export async function runCli(argv: string[]): Promise<number> {
       if (parsed.positionals.length > 0) {
         throw new Error('litmo diff does not accept positional arguments.');
       }
-      const results = await checkRepository(repoRoot);
+      const results = await withTerminalProgress('Comparing Litmo evidence…', () =>
+        checkRepository(repoRoot),
+      );
       const changed = results.filter((result) => result.status !== 'pass');
       console.log(
-        changed.length === 0 ? 'No evidence drift.' : changed.map(renderResult).join('\n\n'),
+        changed.length === 0
+          ? 'No evidence drift.'
+          : changed.map((result) => renderResult(result, renderOptions)).join('\n\n'),
       );
       return results.some((result) => result.status === 'integrity_error') ? 2 : 0;
     }
@@ -186,7 +196,22 @@ export async function runCli(argv: string[]): Promise<number> {
       if (parsed.positionals.length !== 1 || parsed.positionals[0] === undefined) {
         throw new Error('litmo explain requires one full receipt ID.');
       }
-      console.log(renderExplain(await explainEvidence(repoRoot, parsed.positionals[0])));
+      const result = await withTerminalProgress('Explaining Litmo evidence…', () =>
+        explainEvidence(repoRoot, parsed.positionals[0] as string),
+      );
+      console.log(renderExplain(result, renderOptions));
+      return 0;
+    }
+    case 'demo': {
+      ensureOptions(parsed, ['root']);
+      if (parsed.positionals.length > 0) {
+        throw new Error('litmo demo does not accept positional arguments.');
+      }
+      const result = await withTerminalProgress(
+        'Creating the Litmo signature-drift demo…',
+        (report) => runSignatureDriftDemo(repoRoot, report),
+      );
+      console.log(renderDemo(result, renderOptions));
       return 0;
     }
     default:

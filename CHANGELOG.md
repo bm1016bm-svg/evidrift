@@ -11,6 +11,8 @@ All notable changes are documented here. The project follows [Semantic Versionin
 - Resource-bound validation for Receipt counts and transitive TypeScript declaration reads.
 - UAT coverage for control-character injection, literal whitespace drift, external declaration escapes, resource exhaustion, and demo cleanup junctions.
 - A boss-fight fixture proving current behavior for overload sets with complex cross-file type aliases.
+- Self-contained `litmo demo` command that records a passing contract, changes it, and displays the deterministic failure.
+- TTY-only Chalk colors, status icons, and Ora progress feedback with ANSI-free CI and pipe output.
 
 ### Changed
 
@@ -19,6 +21,7 @@ All notable changes are documented here. The project follows [Semantic Versionin
 - README now leads with the product's one-line purpose, source installation, and a runnable quick start.
 - Signature normalization preserves whitespace inside string, template, and quoted literal types.
 - Every build removes stale `dist` output before compiling.
+- Package metadata and executable bins are ready for `npx litmo`; actual npm publication is still withheld.
 
 ## [0.1.0] - 2026-07-14
 

@@ -16,9 +16,11 @@ flowchart LR
 
 ## Components
 
-- `src/cli.ts`: argument parsing, output, and exit codes for `init`, `record`, `check`, `diff`, and `explain`.
+- `src/cli.ts`: argument parsing, output, and exit codes for `init`, `record`, `check`, `diff`, `explain`, and `demo`.
 - `src/mcp.ts`: one STDIO tool, `litmo_record`; it accepts locators, not raw receipts.
 - `src/core.ts`: record and revalidation policy shared by CLI and MCP.
+- `src/demo.ts`: a self-contained local fixture that deliberately changes one dependency signature.
+- `src/output.ts` and `src/terminal.ts`: TTY-only presentation and stable machine-readable fallback output.
 - `src/adapter/typescript-symbol.ts`: dependency resolution and TypeScript Compiler API inspection.
 - `src/storage.ts`: strict untrusted-input validation, canonical writes, content hashes, and lock handling.
 - `src/canonical.ts`: deterministic serialization and SHA-256.
@@ -58,6 +60,7 @@ An unavailable source is not silently called a match. It is reported as `WARNING
 - `package.json` and declaration reads are size-bounded.
 - Receipt schemas reject unknown fields, including `matched`, `verified`, or command-shaped additions.
 - No adapter invokes a shell, lifecycle script, package entry point, network request, or LLM.
+- Demo cleanup only replaces a real repository-local directory carrying Litmo's exact generated marker; symlinks, junctions, and unmarked directories are refused.
 - Atomic temporary-file replacement reduces partial writes. v0.1 does not provide cross-process locking.
 - Untrusted control characters are rejected in stored text and escaped in rendered errors, preventing ANSI control output and forged log lines.
 - Content hashes detect inconsistent or partially modified evidence; they do not authenticate an author. Someone who can rewrite both a Receipt and the lock can create a new internally valid Receipt, so Git review remains part of the trust model.

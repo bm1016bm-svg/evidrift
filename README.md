@@ -8,7 +8,17 @@ It is a local TypeScript CLI and STDIO MCP server. No cloud account. No LLM judg
 
 ## Installation
 
-Litmo is not on npm yet. Build it from a repository checkout with Node.js 22 or newer:
+The package is ready for zero-install use after the first npm release:
+
+```bash
+npx litmo init
+```
+
+That command runs in the current repository; no global install or Litmo account is required. Node.js 22 or newer is still required because `npx` ships with Node/npm.
+
+On a cold npm cache, npm may ask once before downloading an uninstalled package. That prompt belongs to `npx`, not Litmo. For fully non-interactive use, run `npx --yes litmo init`.
+
+**Current status:** `litmo` returned `E404` from the official npm registry on 2026-07-14, so the bare command is not live yet. Publication remains intentionally blocked until the public GitHub repository and CI exist. From this checkout, use:
 
 ```bash
 npm ci
@@ -17,19 +27,24 @@ npm link
 litmo --help
 ```
 
-Do not want a global link? Replace `litmo` with `node /absolute/path/to/litmo/dist/src/cli.js`.
+The packed artifact has been tested through real `npx --package <local-tarball> litmo init`; the remaining step is registry publication, not CLI packaging.
 
 ## Quick Start
 
-Run the complete signature-drift demo:
+After npm publication, the one-command demo is:
+
+```bash
+npx litmo demo
+```
+
+From this checkout, run the same self-contained demo with:
 
 ```bash
 npm ci
-npm run build
 npm run demo
 ```
 
-The demo does four things: records the optional `options` parameter on `parseConfig`, checks it successfully, changes the fixture so `options` is required, then fails deterministically.
+The demo creates an ignored `.litmo-demo/signature-drift` workspace, records the optional `options` parameter on `parseConfig`, checks it successfully, changes the fixture so `options` is required, then shows the deterministic failure. It executes no downloaded package code.
 
 ```text
 FAIL contract_mismatch sha256:...
@@ -109,6 +124,8 @@ Action: Do not trust or hand-edit this Receipt. Restore it from version control,
 
 The included GitHub Actions workflow runs the full gate on Node.js 22 and 24. Third-party Actions are pinned to full commit SHAs.
 
+In a human TTY, `check`, `diff`, `explain`, and `demo` use a spinner plus green `✅`, yellow `⚠`, and red `❌` status output. Redirected output, CI, `TERM=dumb`, and `NO_COLOR` stay ANSI-free and keep the stable plain-text format used by agents and tests.
+
 ## Why This Is Not RAG, Sonar, or AI Review
 
 | Tool                  | Its job                                        | Litmo's job                                            |
@@ -128,6 +145,7 @@ litmo record --project <path> --package <name> --symbol <name> \
 litmo check
 litmo diff
 litmo explain <receipt-id>
+litmo demo
 ```
 
 All commands accept `--root <repo>`. `record` requires an initialized `.litmo/evidence.lock`.

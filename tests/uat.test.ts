@@ -21,7 +21,6 @@ import type { EvidenceLock, Receipt, ReceiptPayload } from '../src/types.js';
 import { createFixtureRepository, DRIFTED_DECLARATION, type FixtureRepository } from './helpers.js';
 
 const cli = path.resolve(process.cwd(), 'dist', 'src', 'cli.js');
-const demoScript = path.resolve(process.cwd(), 'scripts', 'demo.mjs');
 const bossFightExample = path.resolve(process.cwd(), 'examples', 'boss-fight-test');
 
 interface CliResult {
@@ -467,6 +466,55 @@ test('UAT: coordinated rehashing is internally valid and remains a documented Gi
   assert.match(result, /Claim: A replacement claim with a newly calculated content address/);
 });
 
+test('UAT: litmo demo creates a self-contained PASS-to-FAIL signature drift experience', async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), 'litmo-demo-command-'));
+  t.after(async () => rm(root, { recursive: true, force: true }));
+
+  const result = runCli(['demo', '--root', root], 0);
+  assert.equal(result.stderr, '');
+  for (const expected of [
+    'Litmo signature-drift demo',
+    '1/3 Evidence recorded',
+    'RECORDED sha256:',
+    '2/3 Baseline contract',
+    'PASS sha256:',
+    '3/3 Dependency signature changed on purpose',
+    'FAIL contract_mismatch',
+    'Expected signature: parseConfig(input:string,options?:ParseOptions):ParseResult',
+    'Current signature: parseConfig(input:string,options:ParseOptions):ParseResult',
+    'Litmo caught the dependency contract drift before merge.',
+  ]) {
+    assert.ok(result.stdout.includes(expected), `Missing ${expected} in:\n${result.stdout}`);
+  }
+  assert.doesNotMatch(result.stdout, /\u001b/u);
+  await access(path.join(root, '.litmo-demo', 'signature-drift', '.litmo-generated'));
+  const lock = JSON.parse(
+    await readFile(
+      path.join(root, '.litmo-demo', 'signature-drift', '.litmo', 'evidence.lock'),
+      'utf8',
+    ),
+  ) as EvidenceLock;
+  assert.equal(lock.receipts.length, 1);
+});
+
+test('UAT: litmo demo refuses to replace an unmarked existing directory', async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), 'litmo-demo-unmarked-'));
+  const existing = path.join(root, '.litmo-demo', 'signature-drift');
+  const sentinel = path.join(existing, 'sentinel.txt');
+  await mkdir(existing, { recursive: true });
+  await writeFile(sentinel, 'user-owned data must survive\n');
+  t.after(async () => rm(root, { recursive: true, force: true }));
+
+  const result = runCli(['demo', '--root', root], 2);
+  assert.equal(result.stdout, '');
+  assert.match(
+    result.stderr,
+    /^ERROR: Existing \.litmo-demo\/signature-drift is not marked as Litmo-generated; refusing to delete it\./u,
+  );
+  assert.doesNotMatch(result.stderr, /\n\s+at /u);
+  await access(sentinel);
+});
+
 test('UAT: demo cleanup refuses a symlink or junction without deleting outside data', async (t) => {
   const root = await mkdtemp(path.join(tmpdir(), 'litmo-demo-root-'));
   const outside = await mkdtemp(path.join(tmpdir(), 'litmo-demo-outside-'));
@@ -501,13 +549,10 @@ test('UAT: demo cleanup refuses a symlink or junction without deleting outside d
     await rm(outside, { recursive: true, force: true });
   });
 
-  const result = spawnSync(process.execPath, [demoScript, 'setup'], {
-    cwd: root,
-    encoding: 'utf8',
-  });
-  assert.equal(result.status, 1, `${result.stdout}\n${result.stderr}`);
+  const result = spawnSync(process.execPath, [cli, 'demo', '--root', root], { encoding: 'utf8' });
+  assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
   assert.equal(result.stdout, '');
-  assert.match(result.stderr, /^Demo refused: \.litmo-demo must be a real directory/);
+  assert.match(result.stderr, /^ERROR: \.litmo-demo must be a real directory/);
   assert.doesNotMatch(result.stderr, /\n\s+at /u);
   await access(sentinel);
 });
