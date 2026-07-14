@@ -8,3 +8,4 @@ coverage/
 
 # Local-only preservation and verification output.
 .local/
+.security-scan-work/

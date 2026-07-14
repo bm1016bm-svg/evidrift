@@ -26,7 +26,7 @@ flowchart LR
 ## Record path
 
 1. Require an existing target repository and `.litmo/evidence.lock`.
-2. Constrain project and affected-code paths to the repository.
+2. Constrain project and affected-code paths to the repository; affected code must resolve to a regular file.
 3. Resolve a registry-style npm dependency from the consuming `package.json`.
 4. Locate the package's `types`/`typings` entry without importing or executing package code.
 5. Require the package and declaration file to resolve inside the repository.
@@ -51,18 +51,22 @@ An unavailable source is not silently called a match. It is reported as `WARNING
 
 - Receipt paths are derived from IDs matching `sha256:[a-f0-9]{64}`; Receipt input cannot select a filesystem path.
 - Lock and Receipt reads reject symlinks and non-regular files, stay inside the repository, and are capped at 1 MiB and 4 MiB respectively.
+- A lock can name at most 1,024 Receipts; recording refuses the limit before creating an orphan Receipt file.
 - Project, affected-code, package, and declaration paths cannot escape the repository.
+- Transitive TypeScript declaration imports are resolved with a repository-confined compiler host and capped at 256 files, 2 MiB per file, and 16 MiB total.
 - Package names must use registry-style npm names; paths and URLs are rejected.
 - `package.json` and declaration reads are size-bounded.
 - Receipt schemas reject unknown fields, including `matched`, `verified`, or command-shaped additions.
 - No adapter invokes a shell, lifecycle script, package entry point, network request, or LLM.
 - Atomic temporary-file replacement reduces partial writes. v0.1 does not provide cross-process locking.
+- Untrusted control characters are rejected in stored text and escaped in rendered errors, preventing ANSI control output and forged log lines.
 - Content hashes detect inconsistent or partially modified evidence; they do not authenticate an author. Someone who can rewrite both a Receipt and the lock can create a new internally valid Receipt, so Git review remains part of the trust model.
 
 ## Deliberate limitations
 
 - Exactly one call signature per exported symbol; overload sets are rejected.
 - The dependency and its declaration file must resolve inside the repository.
+- All transitive declaration sources must also resolve inside the repository and stay within the documented resource budgets.
 - Only `types` or `typings` package entries are supported.
 - Source parse or resolution failure is a non-blocking warning.
 - No Receipt signing, transparency service, remote verification, or package-manager-specific store support.

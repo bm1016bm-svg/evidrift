@@ -57,3 +57,50 @@ test('STDIO MCP records through the same core and never declares verification', 
     await client.close();
   }
 });
+
+test('STDIO MCP rejects URLs and raw verification fields without writing a receipt', async () => {
+  const fixture = await createFixtureRepository();
+  await initLitmo(fixture.root);
+  const client = new Client({ name: 'litmo-uat-client', version: '1.0.0' });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [path.resolve(process.cwd(), 'dist', 'src', 'mcp.js')],
+    cwd: fixture.root,
+    stderr: 'pipe',
+  });
+  try {
+    await client.connect(transport);
+    const urlResult = await client.callTool({
+      name: 'litmo_record',
+      arguments: {
+        projectRoot: 'app',
+        packageName: 'https://does-not-exist.invalid/package',
+        symbol: 'parseConfig',
+        claim: 'A URL must not become executable evidence.',
+        affectedCodePath: 'app/src/index.ts',
+      },
+    });
+    assert.equal(urlResult.isError, true);
+    assert.ok(Array.isArray(urlResult.content));
+    const urlText = urlResult.content.find(isTextContent);
+    assert.ok(urlText);
+    assert.match(urlText.text, /registry-style npm package name, not a path or URL/);
+
+    const rawStatusResult = await client.callTool({
+      name: 'litmo_record',
+      arguments: {
+        projectRoot: 'app',
+        packageName: '@litmo/demo-contract',
+        symbol: 'parseConfig',
+        claim: 'Raw status fields must be rejected.',
+        affectedCodePath: 'app/src/index.ts',
+        verified: true,
+      },
+    });
+    assert.equal(rawStatusResult.isError, true);
+    const lock = await readEvidenceLock(fixture.root);
+    assert.equal(lock.receipts.length, 0);
+  } finally {
+    await client.close();
+  }
+});

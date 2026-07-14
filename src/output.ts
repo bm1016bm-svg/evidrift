@@ -1,4 +1,5 @@
 import { affectedCodeLabel } from './core.js';
+import { escapeOutputText } from './text.js';
 import type { CheckResult, Receipt } from './types.js';
 
 function statusLabel(result: CheckResult): string {
@@ -17,42 +18,47 @@ function statusLabel(result: CheckResult): string {
 }
 
 export function renderRecord(receipt: Receipt): string {
+  const receiptId = escapeOutputText(receipt.id);
   return [
-    `RECORDED ${receipt.id}`,
-    `Claim: ${receipt.claim}`,
-    `Expected signature: ${receipt.evidence.expectedSignature}`,
-    `Affected code location: ${affectedCodeLabel(receipt.affectedCode.path, receipt.affectedCode.line)}`,
-    `Receipt ID: ${receipt.id}`,
-    `Receipt file: .litmo/receipts/${receipt.id.slice('sha256:'.length)}.json`,
+    `RECORDED ${receiptId}`,
+    `Claim: ${escapeOutputText(receipt.claim)}`,
+    `Expected signature: ${escapeOutputText(receipt.evidence.expectedSignature)}`,
+    `Affected code location: ${escapeOutputText(affectedCodeLabel(receipt.affectedCode.path, receipt.affectedCode.line))}`,
+    `Receipt ID: ${receiptId}`,
+    `Receipt file: .litmo/receipts/${escapeOutputText(receipt.id.slice('sha256:'.length))}.json`,
     'State: recorded evidence; no verified or runtime-correctness claim was stored.',
   ].join('\n');
 }
 
 export function renderResult(result: CheckResult): string {
-  const lines = [`${statusLabel(result)} ${result.receiptId}`, `Message: ${result.message}`];
+  const receiptId = escapeOutputText(result.receiptId);
+  const lines = [
+    `${statusLabel(result)} ${receiptId}`,
+    `Message: ${escapeOutputText(result.message)}`,
+  ];
   if (result.claim !== undefined) {
-    lines.push(`Claim: ${result.claim}`);
+    lines.push(`Claim: ${escapeOutputText(result.claim)}`);
   }
   if (result.expectedSignature !== undefined) {
-    lines.push(`Expected signature: ${result.expectedSignature}`);
+    lines.push(`Expected signature: ${escapeOutputText(result.expectedSignature)}`);
   }
   if (result.currentSignature !== undefined) {
-    lines.push(`Current signature: ${result.currentSignature}`);
+    lines.push(`Current signature: ${escapeOutputText(result.currentSignature)}`);
   }
   if (result.affectedCode !== undefined) {
     lines.push(
-      `Affected code location: ${affectedCodeLabel(result.affectedCode.path, result.affectedCode.line)}`,
+      `Affected code location: ${escapeOutputText(affectedCodeLabel(result.affectedCode.path, result.affectedCode.line))}`,
     );
   }
-  lines.push(`Receipt ID: ${result.receiptId}`);
+  lines.push(`Receipt ID: ${receiptId}`);
   if (result.expectedPackageVersion !== undefined) {
     lines.push(
-      `Package version: expected ${result.expectedPackageVersion}; current ${result.currentPackageVersion ?? 'unavailable'}`,
+      `Package version: expected ${escapeOutputText(result.expectedPackageVersion)}; current ${escapeOutputText(result.currentPackageVersion ?? 'unavailable')}`,
     );
   }
   if (result.expectedResolvedPath !== undefined) {
     lines.push(
-      `Resolved path: expected ${result.expectedResolvedPath}; current ${result.currentResolvedPath ?? 'unavailable'}`,
+      `Resolved path: expected ${escapeOutputText(result.expectedResolvedPath)}; current ${escapeOutputText(result.currentResolvedPath ?? 'unavailable')}`,
     );
   }
   if (result.status === 'contract_mismatch') {
@@ -68,6 +74,11 @@ export function renderResult(result: CheckResult): string {
   if (result.status === 'unverifiable') {
     lines.push(
       'Action: Restore the dependency source and rerun check; v0.1 reports this as non-blocking.',
+    );
+  }
+  if (result.status === 'integrity_error') {
+    lines.push(
+      'Action: Do not trust or hand-edit this Receipt. Restore it from version control, or intentionally create a new Receipt with `litmo record`.',
     );
   }
   return lines.join('\n');

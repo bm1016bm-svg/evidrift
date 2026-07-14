@@ -1,5 +1,7 @@
 import path from 'node:path';
 
+import { hasUnsafeControlCharacters } from './text.js';
+
 export class PathSafetyError extends Error {
   override name = 'PathSafetyError';
 }
@@ -9,7 +11,7 @@ export function normalizeRelativePath(value: string): string {
 }
 
 export function assertSafeRelativePath(value: string, label: string, allowDot = true): string {
-  if (!value || value.includes('\0') || path.isAbsolute(value)) {
+  if (!value || hasUnsafeControlCharacters(value) || path.isAbsolute(value)) {
     throw new PathSafetyError(`${label} must be a repository-relative path.`);
   }
 

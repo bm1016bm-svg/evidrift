@@ -1,3 +1,4 @@
+import { existsSync, lstatSync, readFileSync, realpathSync } from 'node:fs';
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import path from 'node:path';
@@ -11,6 +12,9 @@ const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const MAX_PACKAGE_JSON_BYTES = 1024 * 1024;
 const MAX_DECLARATION_BYTES = 2 * 1024 * 1024;
+const MAX_DECLARATION_FILES = 256;
+const MAX_TOTAL_DECLARATION_BYTES = 16 * 1024 * 1024;
+const SIGNATURE_PUNCTUATION = new Set([',', ':', '?', '(', ')', '<', '>', '|', '&']);
 
 export class AdapterError extends Error {
   override name = 'AdapterError';
@@ -93,14 +97,309 @@ async function findPackageJson(projectRoot: string, packageName: string): Promis
 }
 
 function normalizeSignature(value: string): string {
-  return value
-    .replace(/\s+/g, ' ')
-    .replace(/\s*([,:?()<>|&])\s*/g, '$1')
-    .trim();
+  let normalized = '';
+  let pendingSpace = false;
+  let quote: "'" | '"' | '`' | undefined;
+  let escaped = false;
+
+  for (const character of value) {
+    if (quote !== undefined) {
+      normalized += character;
+      if (escaped) {
+        escaped = false;
+      } else if (character === '\\') {
+        escaped = true;
+      } else if (character === quote) {
+        quote = undefined;
+      }
+      continue;
+    }
+
+    if (character === "'" || character === '"' || character === '`') {
+      const previous = normalized.at(-1);
+      if (pendingSpace && normalized.length > 0 && !SIGNATURE_PUNCTUATION.has(previous ?? '')) {
+        normalized += ' ';
+      }
+      pendingSpace = false;
+      quote = character;
+      normalized += character;
+      continue;
+    }
+
+    if (/\s/u.test(character)) {
+      pendingSpace = true;
+      continue;
+    }
+
+    if (SIGNATURE_PUNCTUATION.has(character)) {
+      normalized = normalized.replace(/ $/u, '');
+      normalized += character;
+      pendingSpace = false;
+      continue;
+    }
+
+    const previous = normalized.at(-1);
+    if (pendingSpace && normalized.length > 0 && !SIGNATURE_PUNCTUATION.has(previous ?? '')) {
+      normalized += ' ';
+    }
+    pendingSpace = false;
+    normalized += character;
+  }
+
+  return normalized.trim();
 }
 
 function diagnosticText(diagnostic: ts.Diagnostic): string {
   return ts.flattenDiagnosticMessageText(diagnostic.messageText, ' ');
+}
+
+interface AllowedCompilerFile {
+  path: string;
+  trustedCompilerFile: boolean;
+}
+
+function createBoundedCompilerHost(
+  repoRootInput: string,
+  options: ts.CompilerOptions,
+  rootFile: string,
+  rootText: string,
+): {
+  host: ts.CompilerHost;
+  auditTransitiveSources: () => void;
+  assertNoEscapedRead: () => void;
+} {
+  const repoRoot = realpathSync(repoRootInput);
+  const compilerLibraryRoot = realpathSync(path.dirname(ts.getDefaultLibFilePath(options)));
+  const baseHost = ts.createCompilerHost(options, true);
+  const sourceCache = new Map<string, string>([[rootFile, rootText]]);
+  const untrustedSourceBytes = new Map<string, number>([
+    [rootFile, Buffer.byteLength(rootText, 'utf8')],
+  ]);
+  let totalUntrustedBytes = untrustedSourceBytes.get(rootFile) ?? 0;
+  let escapedReadObserved = false;
+
+  function allowedFile(fileName: string, recordEscape: boolean): AllowedCompilerFile | undefined {
+    if (!existsSync(fileName)) {
+      return undefined;
+    }
+    let resolved: string;
+    try {
+      resolved = realpathSync(fileName);
+    } catch {
+      return undefined;
+    }
+    const metadata = lstatSync(resolved);
+    if (!metadata.isFile()) {
+      return undefined;
+    }
+    if (isInside(repoRoot, resolved)) {
+      return { path: resolved, trustedCompilerFile: false };
+    }
+    if (isInside(compilerLibraryRoot, resolved)) {
+      return { path: resolved, trustedCompilerFile: true };
+    }
+    if (recordEscape) {
+      escapedReadObserved = true;
+    }
+    return undefined;
+  }
+
+  function allowedDirectory(directoryName: string): string | undefined {
+    if (!existsSync(directoryName)) {
+      return undefined;
+    }
+    let resolved: string;
+    try {
+      resolved = realpathSync(directoryName);
+    } catch {
+      return undefined;
+    }
+    if (!lstatSync(resolved).isDirectory()) {
+      return undefined;
+    }
+    return isInside(repoRoot, resolved) || isInside(compilerLibraryRoot, resolved)
+      ? resolved
+      : undefined;
+  }
+
+  function readBoundedSource(fileName: string): { path: string; text: string } | undefined {
+    const allowed = allowedFile(fileName, true);
+    if (allowed === undefined) {
+      return undefined;
+    }
+    const cached = sourceCache.get(allowed.path);
+    if (cached !== undefined) {
+      return { path: allowed.path, text: cached };
+    }
+
+    const metadata = lstatSync(allowed.path);
+    if (metadata.size > MAX_DECLARATION_BYTES) {
+      throw new AdapterError(
+        `A TypeScript source exceeds the ${MAX_DECLARATION_BYTES}-byte per-file limit.`,
+      );
+    }
+    if (!allowed.trustedCompilerFile) {
+      if (untrustedSourceBytes.size >= MAX_DECLARATION_FILES) {
+        throw new AdapterError(
+          `TypeScript evidence loads more than ${MAX_DECLARATION_FILES} repository source files.`,
+        );
+      }
+      if (totalUntrustedBytes + metadata.size > MAX_TOTAL_DECLARATION_BYTES) {
+        throw new AdapterError(
+          `TypeScript evidence exceeds the ${MAX_TOTAL_DECLARATION_BYTES}-byte aggregate source limit.`,
+        );
+      }
+    }
+
+    const text = readFileSync(allowed.path, 'utf8');
+    const actualBytes = Buffer.byteLength(text, 'utf8');
+    if (actualBytes > MAX_DECLARATION_BYTES) {
+      throw new AdapterError(
+        `A TypeScript source exceeds the ${MAX_DECLARATION_BYTES}-byte per-file limit.`,
+      );
+    }
+    if (!allowed.trustedCompilerFile) {
+      if (totalUntrustedBytes + actualBytes > MAX_TOTAL_DECLARATION_BYTES) {
+        throw new AdapterError(
+          `TypeScript evidence exceeds the ${MAX_TOTAL_DECLARATION_BYTES}-byte aggregate source limit.`,
+        );
+      }
+      untrustedSourceBytes.set(allowed.path, actualBytes);
+      totalUntrustedBytes += actualBytes;
+    }
+    sourceCache.set(allowed.path, text);
+    return { path: allowed.path, text };
+  }
+
+  const host: ts.CompilerHost = {
+    ...baseHost,
+    getCurrentDirectory: () => repoRoot,
+    fileExists: (fileName) => allowedFile(fileName, true) !== undefined,
+    readFile: (fileName) => readBoundedSource(fileName)?.text,
+    getSourceFile: (fileName, languageVersion, onError) => {
+      try {
+        const source = readBoundedSource(fileName);
+        return source === undefined
+          ? undefined
+          : ts.createSourceFile(source.path, source.text, languageVersion, true);
+      } catch (error) {
+        if (error instanceof AdapterError) {
+          throw error;
+        }
+        onError?.(error instanceof Error ? error.message : String(error));
+        return undefined;
+      }
+    },
+    realpath: (fileName) => allowedFile(fileName, true)?.path ?? fileName,
+    directoryExists: (directoryName) => allowedDirectory(directoryName) !== undefined,
+    getDirectories: (directoryName) => {
+      const resolved = allowedDirectory(directoryName);
+      return resolved === undefined ? [] : (baseHost.getDirectories?.(resolved) ?? []);
+    },
+  };
+
+  function auditTransitiveSources(): void {
+    const pending = [rootFile];
+    const visited = new Set<string>();
+
+    const enqueue = (fileName: string, description: string): void => {
+      const allowed = allowedFile(fileName, true);
+      if (allowed === undefined) {
+        if (escapedReadObserved) {
+          throw new AdapterError(
+            'A transitive TypeScript source resolves outside the repository; v0.1 refuses it.',
+          );
+        }
+        throw new AdapterError(`${description} could not be resolved to a readable source file.`);
+      }
+      if (!allowed.trustedCompilerFile && !visited.has(allowed.path)) {
+        pending.push(allowed.path);
+      }
+    };
+
+    while (pending.length > 0) {
+      const current = pending.pop();
+      if (current === undefined) {
+        break;
+      }
+      const source = readBoundedSource(current);
+      if (source === undefined || visited.has(source.path)) {
+        continue;
+      }
+      visited.add(source.path);
+      const references = ts.preProcessFile(source.text, true, true);
+
+      for (const imported of references.importedFiles) {
+        if (
+          (imported.fileName.startsWith('./') ||
+            imported.fileName.startsWith('../') ||
+            path.isAbsolute(imported.fileName)) &&
+          !isInside(repoRoot, path.resolve(path.dirname(source.path), imported.fileName))
+        ) {
+          throw new AdapterError(
+            'A transitive TypeScript source resolves outside the repository; v0.1 refuses it.',
+          );
+        }
+        const resolution = ts.resolveModuleName(imported.fileName, source.path, options, host);
+        if (resolution.resolvedModule === undefined) {
+          if (escapedReadObserved) {
+            throw new AdapterError(
+              'A transitive TypeScript source resolves outside the repository; v0.1 refuses it.',
+            );
+          }
+          throw new AdapterError(
+            `TypeScript import ${imported.fileName} from ${relativeToRepo(repoRoot, source.path)} could not be resolved.`,
+          );
+        }
+        enqueue(
+          resolution.resolvedModule.resolvedFileName,
+          `TypeScript import ${imported.fileName}`,
+        );
+      }
+
+      for (const referenced of references.referencedFiles) {
+        enqueue(
+          path.resolve(path.dirname(source.path), referenced.fileName),
+          `TypeScript reference ${referenced.fileName}`,
+        );
+      }
+
+      for (const typeReference of references.typeReferenceDirectives) {
+        const resolution = ts.resolveTypeReferenceDirective(
+          typeReference.fileName,
+          source.path,
+          options,
+          host,
+        );
+        if (resolution.resolvedTypeReferenceDirective?.resolvedFileName === undefined) {
+          if (escapedReadObserved) {
+            throw new AdapterError(
+              'A transitive TypeScript source resolves outside the repository; v0.1 refuses it.',
+            );
+          }
+          throw new AdapterError(
+            `TypeScript type reference ${typeReference.fileName} from ${relativeToRepo(repoRoot, source.path)} could not be resolved.`,
+          );
+        }
+        enqueue(
+          resolution.resolvedTypeReferenceDirective.resolvedFileName,
+          `TypeScript type reference ${typeReference.fileName}`,
+        );
+      }
+    }
+  }
+
+  return {
+    host,
+    auditTransitiveSources,
+    assertNoEscapedRead: () => {
+      if (escapedReadObserved) {
+        throw new AdapterError(
+          'A transitive TypeScript source resolves outside the repository; v0.1 refuses it.',
+        );
+      }
+    },
+  };
 }
 
 export interface ResolveTypeScriptSymbolInput {
@@ -151,17 +450,26 @@ export async function resolveTypeScriptSymbol(
   }
   const sourceText = await readLimited(declarationPath, MAX_DECLARATION_BYTES);
 
+  const compilerOptions: ts.CompilerOptions = {
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    target: ts.ScriptTarget.ES2022,
+    noEmit: true,
+    skipLibCheck: true,
+    strict: true,
+    types: [],
+  };
+  const boundedHost = createBoundedCompilerHost(
+    input.repoRoot,
+    compilerOptions,
+    declarationPath,
+    sourceText,
+  );
+  boundedHost.auditTransitiveSources();
   const program = ts.createProgram({
     rootNames: [declarationPath],
-    options: {
-      module: ts.ModuleKind.NodeNext,
-      moduleResolution: ts.ModuleResolutionKind.NodeNext,
-      target: ts.ScriptTarget.ES2022,
-      noEmit: true,
-      skipLibCheck: true,
-      strict: true,
-      types: [],
-    },
+    options: compilerOptions,
+    host: boundedHost.host,
   });
   const sourceFile = program.getSourceFile(declarationPath);
   if (!sourceFile) {
@@ -169,7 +477,7 @@ export async function resolveTypeScriptSymbol(
   }
 
   const syntaxDiagnostics = program
-    .getSyntacticDiagnostics(sourceFile)
+    .getSyntacticDiagnostics()
     .filter((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error);
   if (syntaxDiagnostics[0]) {
     throw new AdapterError(
@@ -224,6 +532,9 @@ export async function resolveTypeScriptSymbol(
     ts.SignatureKind.Call,
   );
   const normalized = normalizeSignature(`${input.symbol}${rendered}`);
+  // TypeScript may defer module resolution until the checker renders a type.
+  // Inspect the escape flag only after all evidence-producing checker work.
+  boundedHost.assertNoEscapedRead();
 
   return {
     packageName: input.packageName,

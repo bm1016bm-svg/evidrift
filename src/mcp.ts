@@ -10,6 +10,7 @@ import { z } from 'zod';
 import { recordEvidence, resolveCliProjectRoot } from './core.js';
 import { assertSafeRelativePath } from './paths.js';
 import { renderRecord } from './output.js';
+import { escapeOutputText } from './text.js';
 import { LITMO_VERSION } from './types.js';
 
 export function createLitmoMcpServer(repoRoot = process.cwd()): McpServer {
@@ -22,24 +23,26 @@ export function createLitmoMcpServer(repoRoot = process.cwd()): McpServer {
       title: 'Record deterministic TypeScript evidence',
       description:
         'Resolve an actually installed dependency and create a content-addressed Litmo receipt. The tool records evidence only; it never declares the receipt verified or the code correct.',
-      inputSchema: z.object({
-        projectRoot: z
-          .string()
-          .default('.')
-          .describe('Repository-relative directory containing the consuming package.json.'),
-        packageName: z.string().describe('Installed npm dependency name.'),
-        symbol: z.string().describe('Exported callable TypeScript symbol.'),
-        parameter: z.string().optional().describe('Optional parameter name that must exist.'),
-        claim: z
-          .string()
-          .min(1)
-          .max(500)
-          .describe('Human claim explaining why this evidence matters.'),
-        affectedCodePath: z
-          .string()
-          .describe('Repository-relative source file affected by the claim.'),
-        affectedCodeLine: z.number().int().positive().optional(),
-      }),
+      inputSchema: z
+        .object({
+          projectRoot: z
+            .string()
+            .default('.')
+            .describe('Repository-relative directory containing the consuming package.json.'),
+          packageName: z.string().describe('Installed npm dependency name.'),
+          symbol: z.string().describe('Exported callable TypeScript symbol.'),
+          parameter: z.string().optional().describe('Optional parameter name that must exist.'),
+          claim: z
+            .string()
+            .min(1)
+            .max(500)
+            .describe('Human claim explaining why this evidence matters.'),
+          affectedCodePath: z
+            .string()
+            .describe('Repository-relative source file affected by the claim.'),
+          affectedCodeLine: z.number().int().positive().optional(),
+        })
+        .strict(),
       annotations: {
         readOnlyHint: false,
         destructiveHint: false,
@@ -69,7 +72,7 @@ export function createLitmoMcpServer(repoRoot = process.cwd()): McpServer {
           content: [
             {
               type: 'text' as const,
-              text: `Litmo refused to record evidence: ${error instanceof Error ? error.message : String(error)}`,
+              text: `Litmo refused to record evidence: ${escapeOutputText(error instanceof Error ? error.message : String(error))}`,
             },
           ],
           isError: true,
@@ -92,7 +95,7 @@ if (
 ) {
   runMcpServer().catch((error: unknown) => {
     console.error(
-      `Litmo MCP server failed: ${error instanceof Error ? error.message : String(error)}`,
+      `Litmo MCP server failed: ${escapeOutputText(error instanceof Error ? error.message : String(error))}`,
     );
     process.exitCode = 1;
   });

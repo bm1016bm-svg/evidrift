@@ -27,7 +27,7 @@ Equivalent CLI command, run from the target repository:
 codex mcp add litmo -- node /absolute/path/to/litmo/dist/src/mcp.js
 ```
 
-Source: [OpenAI Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference).
+Source: [OpenAI Codex configuration reference](https://developers.openai.com/codex/config-reference/).
 
 ## Claude Code
 

@@ -60,6 +60,63 @@ test('signature drift is a deterministic blocking mismatch', async () => {
   assert.notEqual(results[0]?.expectedSignature, results[0]?.currentSignature);
 });
 
+test('distinct string-literal whitespace produces a deterministic mismatch', async () => {
+  const fixture = await createFixtureRepository();
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    'export declare function parseConfig(mode: "a b"): void;\n',
+  );
+  await initLitmo(fixture.root);
+  await recordEvidence({
+    repoRoot: fixture.root,
+    projectRoot: fixture.app,
+    packageName: '@litmo/demo-contract',
+    symbol: 'parseConfig',
+    parameter: 'mode',
+    claim: 'The exact string-literal mode is part of the dependency contract.',
+    affectedCode: { path: 'app/src/index.ts', line: 2 },
+  });
+
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    'export declare function parseConfig(mode: "a  b"): void;\n',
+  );
+  const results = await checkRepository(fixture.root);
+  assert.equal(results[0]?.status, 'contract_mismatch');
+  assert.match(results[0]?.expectedSignature ?? '', /"a b"/);
+  assert.match(results[0]?.currentSignature ?? '', /"a  b"/);
+  assert.equal(checkExitCode(results), 1);
+});
+
+test('transitive declarations inside the repository remain supported', async () => {
+  const fixture = await createFixtureRepository();
+  await writeFile(
+    path.join(fixture.dependency, 'options.d.ts'),
+    'export interface ParseOptions { strict?: boolean; }\n',
+  );
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    [
+      "import type { ParseOptions } from './options.js';",
+      'export declare function parseConfig(input: string, options?: ParseOptions): string;',
+      '',
+    ].join('\n'),
+  );
+
+  await initLitmo(fixture.root);
+  await recordEvidence({
+    repoRoot: fixture.root,
+    projectRoot: fixture.app,
+    packageName: '@litmo/demo-contract',
+    symbol: 'parseConfig',
+    parameter: 'options',
+    claim: 'Repository-confined transitive declarations remain usable.',
+    affectedCode: { path: 'app/src/index.ts', line: 2 },
+  });
+  const results = await checkRepository(fixture.root);
+  assert.equal(results[0]?.status, 'pass');
+});
+
 test('a removed exported symbol is a deterministic blocking mismatch', async () => {
   const { fixture } = await recordFixture();
   await writeFile(

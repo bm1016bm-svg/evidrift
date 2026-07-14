@@ -13,9 +13,10 @@ import {
 } from './core.js';
 import { assertSafeRelativePath } from './paths.js';
 import { renderCheck, renderExplain, renderRecord, renderResult } from './output.js';
+import { escapeOutputText } from './text.js';
 import { LITMO_VERSION, type AffectedCode } from './types.js';
 
-const HELP = `Litmo ${LITMO_VERSION} — version control for the "why" behind your code
+const HELP = `Litmo ${LITMO_VERSION} - the lockfile for AI assumptions
 
 Usage:
   litmo init [--root <repo>]
@@ -202,7 +203,9 @@ if (
       process.exitCode = code;
     })
     .catch((error: unknown) => {
-      console.error(`ERROR: ${error instanceof Error ? error.message : String(error)}`);
+      console.error(
+        `ERROR: ${escapeOutputText(error instanceof Error ? error.message : String(error))}`,
+      );
       process.exitCode = 2;
     });
 }

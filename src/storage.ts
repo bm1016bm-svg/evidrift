@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import { canonicalStringify, contentHash, sha256 } from './canonical.js';
 import { assertSafeRelativePath, isInside, receiptFileName } from './paths.js';
+import { hasUnsafeControlCharacters } from './text.js';
 import {
   LOCK_SCHEMA_VERSION,
   RECEIPT_SCHEMA_VERSION,
@@ -21,6 +22,7 @@ const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const MAX_LOCK_BYTES = 1024 * 1024;
 const MAX_RECEIPT_BYTES = 4 * 1024 * 1024;
+export const MAX_RECEIPTS = 1024;
 const MAX_PATH_CHARACTERS = 4096;
 const MAX_SIGNATURE_CHARACTERS = 2 * 1024 * 1024;
 
@@ -33,7 +35,7 @@ function assertText(value: unknown, label: string, maximum: number): string {
     typeof value !== 'string' ||
     value.length === 0 ||
     value.length > maximum ||
-    value.includes('\0')
+    hasUnsafeControlCharacters(value)
   ) {
     throw new IntegrityError(`${label} must contain 1-${maximum} safe text characters.`);
   }
@@ -216,6 +218,11 @@ function parseLock(value: unknown): EvidenceLock {
   if (record.schemaVersion !== LOCK_SCHEMA_VERSION || !Array.isArray(record.receipts)) {
     throw new IntegrityError('Unsupported or invalid evidence.lock schema.');
   }
+  if (record.receipts.length > MAX_RECEIPTS) {
+    throw new IntegrityError(
+      `evidence.lock contains more than ${MAX_RECEIPTS} Receipt IDs. Split or remove stale evidence before checking.`,
+    );
+  }
   const receipts = record.receipts.map((id) => {
     if (typeof id !== 'string' || !SHA256_ID.test(id)) {
       throw new IntegrityError('evidence.lock contains an invalid receipt ID.');
@@ -366,6 +373,12 @@ export async function writeReceipt(repoRoot: string, payload: ReceiptPayload): P
   const id = contentHash(validatedPayload);
   const receipt: Receipt = { id, ...validatedPayload };
   const receiptPath = path.join(target.receipts, receiptFileName(id));
+  const lock = await readEvidenceLock(repoRoot);
+  if (!lock.receipts.includes(id) && lock.receipts.length >= MAX_RECEIPTS) {
+    throw new IntegrityError(
+      `evidence.lock already contains the maximum of ${MAX_RECEIPTS} Receipt IDs. Remove stale evidence before recording another Receipt.`,
+    );
+  }
 
   try {
     const existing = parseReceipt(
@@ -385,12 +398,12 @@ export async function writeReceipt(repoRoot: string, payload: ReceiptPayload): P
     await atomicWrite(receiptPath, `${canonicalStringify(receipt)}\n`);
   }
 
-  const lock = await readEvidenceLock(repoRoot);
   if (!lock.receipts.includes(id)) {
     const next: EvidenceLock = {
       schemaVersion: LOCK_SCHEMA_VERSION,
       receipts: [...lock.receipts, id].sort(),
     };
+    parseLock(next);
     await atomicWrite(target.lock, `${canonicalStringify(next)}\n`);
   }
   return receipt;

@@ -34,10 +34,12 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint src tests --max-warnings 0",
+    "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "prepack": "npm run build",
     "smoke": "node dist/tests/smoke.js",
     "test": "npm run build && node --test \"dist/tests/**/*.test.js\" && npm run smoke",
     "typecheck": "tsc --noEmit -p tsconfig.json",
+    "uat": "npm run build && node --test dist/tests/uat.test.js && npm run smoke",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run check"
   },
   "dependencies": {

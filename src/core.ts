@@ -1,4 +1,4 @@
-import { realpath } from 'node:fs/promises';
+import { realpath, stat } from 'node:fs/promises';
 import path from 'node:path';
 
 import {
@@ -7,6 +7,7 @@ import {
   resolveTypeScriptSymbol,
 } from './adapter/typescript-symbol.js';
 import { relativeToRepo, resolveInside } from './paths.js';
+import { hasUnsafeControlCharacters } from './text.js';
 import {
   IntegrityError,
   initializeRepository,
@@ -27,7 +28,7 @@ export async function initLitmo(repoRoot: string): Promise<boolean> {
 }
 
 function validateText(value: string, label: string, maximum: number): void {
-  if (value.trim().length === 0 || value.length > maximum || value.includes('\0')) {
+  if (value.trim().length === 0 || value.length > maximum || hasUnsafeControlCharacters(value)) {
     throw new Error(`${label} must contain 1-${maximum} safe text characters.`);
   }
 }
@@ -38,6 +39,19 @@ export async function recordEvidence(input: RecordInput): Promise<Receipt> {
   const projectRoot = await realpath(input.projectRoot);
   if (resolveInside(repoRoot, projectRoot, 'Project root') !== projectRoot) {
     throw new Error('Project root resolution is inconsistent.');
+  }
+  const affectedCodePath = resolveInside(repoRoot, input.affectedCode.path, 'Affected code');
+  let affectedCodeRealPath: string;
+  try {
+    affectedCodeRealPath = await realpath(affectedCodePath);
+  } catch {
+    throw new Error(`Affected code file was not found: ${input.affectedCode.path}.`);
+  }
+  if (resolveInside(repoRoot, affectedCodeRealPath, 'Affected code') !== affectedCodeRealPath) {
+    throw new Error('Affected code path resolution is inconsistent.');
+  }
+  if (!(await stat(affectedCodeRealPath)).isFile()) {
+    throw new Error(`Affected code path is not a regular file: ${input.affectedCode.path}.`);
   }
   const projectRelative = relativeToRepo(repoRoot, projectRoot);
   const source = await resolveTypeScriptSymbol({
