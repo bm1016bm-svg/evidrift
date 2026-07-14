@@ -152,6 +152,8 @@ Litmo does not prove code is correct. It does not prove a free-text claim is tru
 
 v0.1 checks one exported TypeScript symbol with exactly one call signature. It follows repository-local declaration imports, but does not expand every named type into a deep structural contract. Missing or unreadable source is a visible but non-blocking warning. These are deliberate limits, not hidden guarantees.
 
+The runnable [boss-fight test](examples/boss-fight-test/README.md) shows the exact behavior for three overloads using a complex cross-file type alias: `record` refuses the overload set cleanly and writes no Receipt.
+
 ## Development and UAT
 
 ```bash

@@ -22,6 +22,7 @@ import { createFixtureRepository, DRIFTED_DECLARATION, type FixtureRepository } 
 
 const cli = path.resolve(process.cwd(), 'dist', 'src', 'cli.js');
 const demoScript = path.resolve(process.cwd(), 'scripts', 'demo.mjs');
+const bossFightExample = path.resolve(process.cwd(), 'examples', 'boss-fight-test');
 
 interface CliResult {
   status: number | null;
@@ -43,7 +44,7 @@ async function fixtureFor(t: TestContext): Promise<FixtureRepository> {
 
 function recordArguments(
   fixture: FixtureRepository,
-  overrides: Partial<Record<'package' | 'parameter' | 'code' | 'claim', string>> = {},
+  overrides: Partial<Record<'package' | 'symbol' | 'parameter' | 'code' | 'claim', string>> = {},
 ): string[] {
   return [
     'record',
@@ -54,7 +55,7 @@ function recordArguments(
     '--package',
     overrides.package ?? '@litmo/demo-contract',
     '--symbol',
-    'parseConfig',
+    overrides.symbol ?? 'parseConfig',
     '--parameter',
     overrides.parameter ?? 'options',
     '--claim',
@@ -409,6 +410,39 @@ test('UAT: a removed symbol or overload set is a deterministic blocking mismatch
   const overloadResult = runCli(['check', '--root', overloaded.fixture.root], 1).stdout;
   assert.match(overloadResult, /v0\.1 supports symbols with exactly one call signature/);
   assert.match(overloadResult, /<2 call signatures for parseConfig>/);
+});
+
+test('UAT: boss-fight overloads with a cross-file type alias fail clearly without a Receipt', async (t) => {
+  const fixture = await fixtureFor(t);
+  runCli(['init', '--root', fixture.root], 0);
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    await readFile(path.join(bossFightExample, 'index.d.ts'), 'utf8'),
+  );
+  await writeFile(
+    path.join(fixture.dependency, 'interfaces.ts'),
+    await readFile(path.join(bossFightExample, 'interfaces.ts'), 'utf8'),
+  );
+
+  const result = runCli(
+    recordArguments(fixture, {
+      symbol: 'bossFight',
+      parameter: 'options',
+      claim: 'bossFight accepts the complex options used by this caller.',
+    }),
+    2,
+  );
+  assert.equal(result.stdout, '');
+  assert.match(
+    result.stderr,
+    /^ERROR: v0\.1 supports symbols with exactly one call signature\.\r?\n$/u,
+  );
+
+  const lock = JSON.parse(
+    await readFile(path.join(fixture.root, '.litmo', 'evidence.lock'), 'utf8'),
+  ) as EvidenceLock;
+  assert.deepEqual(lock.receipts, []);
+  assert.deepEqual(await readdir(path.join(fixture.root, '.litmo', 'receipts')), []);
 });
 
 test('UAT: coordinated rehashing is internally valid and remains a documented Git-review boundary', async (t) => {

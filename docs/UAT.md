@@ -17,8 +17,8 @@ npm run uat
 Local checkpoint on 2026-07-14:
 
 - Platform: Windows, Node.js `v24.13.0`, npm `11.6.2`.
-- Automated result: 30 tests passed, 0 failed, 0 skipped.
-- Isolated UAT result: 13 tests passed, 0 failed, 0 skipped; smoke passed after the same run.
+- Automated result: 31 tests passed, 0 failed, 0 skipped.
+- Isolated UAT result: 14 tests passed, 0 failed, 0 skipped; smoke passed after the same run.
 - Smoke result: baseline `PASS`, changed signature `FAIL`.
 - Packed-install result: a fresh temporary consumer installed the tarball, ran the installed `litmo 0.1.0 --help`, and contained the `litmo-mcp` executable.
 - Dependency advisory result: `npm audit --registry=https://registry.npmjs.org` reported 0 known vulnerabilities at the checkpoint time.
@@ -66,6 +66,7 @@ The counts above come from the local `npm run verify` and `npm run uat` output. 
 | UAT-34 | Exceed declaration file-count or byte budgets              | Evidence creation fails with the exact active limit                              | resource-budget UAT test           |
 | UAT-35 | Point demo work paths at an outside directory junction     | Demo refuses cleanup and outside data remains intact                             | demo-cleanup UAT test              |
 | UAT-36 | Install the packed artifact in a fresh temporary consumer  | Installed `litmo` help runs and the `litmo-mcp` executable exists                | packed-install checkpoint          |
+| UAT-37 | Record three overloads using a complex cross-file alias    | Cross-file source resolves; record exits `2` clearly and writes no Receipt       | boss-fight UAT test                |
 
 ## Tamper behavior
 

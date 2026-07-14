@@ -10,6 +10,7 @@ All notable changes are documented here. The project follows [Semantic Versionin
 - Validation that affected-code locations resolve to real repository files before recording.
 - Resource-bound validation for Receipt counts and transitive TypeScript declaration reads.
 - UAT coverage for control-character injection, literal whitespace drift, external declaration escapes, resource exhaustion, and demo cleanup junctions.
+- A boss-fight fixture proving current behavior for overload sets with complex cross-file type aliases.
 
 ### Changed
 
