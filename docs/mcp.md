@@ -78,7 +78,10 @@ Open the target repository as the Cursor workspace. Source: [Cursor MCP document
 - `packageName`: installed registry-style npm package name.
 - `symbol`: exported callable symbol.
 - `parameter`: optional parameter that must exist when recording.
+- `overload`: optional 1-based overload selector. It is required when `symbol` has multiple call signatures.
 - `claim`: human explanation, maximum 500 characters.
 - `affectedCodePath` and optional `affectedCodeLine`.
+
+When an overloaded symbol is submitted without `overload`, the tool returns a classified error containing numbered, normalized candidates and writes no Receipt. The agent can then retry with one explicit candidate. The selector index is not trusted during later checks; revalidation searches the current overload set for the content hash saved in the Receipt.
 
 The tool constructs the Receipt itself. An agent cannot submit raw Receipt JSON, set an ID, store a verification result, or request arbitrary command execution.

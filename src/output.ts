@@ -101,7 +101,7 @@ export function renderResult(result: CheckResult, options: RenderOptions = {}): 
   }
   if (result.status === 'unverifiable') {
     lines.push(
-      'Action: Restore the dependency source and rerun check; v0.1 reports this as non-blocking.',
+      'Action: Restore the dependency source and rerun check; Evidrift reports this as non-blocking.',
     );
   }
   if (result.status === 'integrity_error') {

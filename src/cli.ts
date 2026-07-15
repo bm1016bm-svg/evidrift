@@ -22,7 +22,7 @@ const HELP = `Evidrift ${EVIDRIFT_VERSION} - the lockfile for AI assumptions
 
 Usage:
   evidrift init [--root <repo>]
-  evidrift record --package <name> --symbol <name> [--parameter <name>]
+  evidrift record --package <name> --symbol <name> [--parameter <name>] [--overload <number>]
                --claim <text> --code <path[:line]> [--project <path>] [--root <repo>]
   evidrift check [--root <repo>]
   evidrift diff [--root <repo>]
@@ -106,6 +106,21 @@ function parseAffectedCode(value: string): AffectedCode {
   return match[2] === undefined ? { path: safePath } : { path: safePath, line: Number(match[2]) };
 }
 
+function positiveIntegerOption(parsed: ParsedArguments, name: string): number | undefined {
+  const value = option(parsed, name);
+  if (value === undefined) {
+    return undefined;
+  }
+  if (!/^[1-9][0-9]*$/u.test(value)) {
+    throw new Error(`Option --${name} must be a positive integer.`);
+  }
+  const parsedValue = Number(value);
+  if (!Number.isSafeInteger(parsedValue)) {
+    throw new Error(`Option --${name} must be a positive safe integer.`);
+  }
+  return parsedValue;
+}
+
 export async function runCli(argv: string[]): Promise<number> {
   const parsed = parseArguments(argv);
   const renderOptions = { interactive: interactiveTerminalEnabled() };
@@ -134,7 +149,16 @@ export async function runCli(argv: string[]): Promise<number> {
       return 0;
     }
     case 'record': {
-      ensureOptions(parsed, ['claim', 'code', 'package', 'parameter', 'project', 'root', 'symbol']);
+      ensureOptions(parsed, [
+        'claim',
+        'code',
+        'overload',
+        'package',
+        'parameter',
+        'project',
+        'root',
+        'symbol',
+      ]);
       if (parsed.positionals.length > 0) {
         throw new Error('evidrift record does not accept positional arguments.');
       }
@@ -150,6 +174,7 @@ export async function runCli(argv: string[]): Promise<number> {
       ) {
         throw new Error('Required record options were not parsed.');
       }
+      const overload = positiveIntegerOption(parsed, 'overload');
       const receipt = await recordEvidence({
         repoRoot,
         projectRoot: resolveCliProjectRoot(repoRoot, option(parsed, 'project') ?? '.'),
@@ -158,6 +183,7 @@ export async function runCli(argv: string[]): Promise<number> {
         ...(option(parsed, 'parameter') === undefined
           ? {}
           : { parameter: option(parsed, 'parameter') as string }),
+        ...(overload === undefined ? {} : { overload }),
         claim,
         affectedCode: parseAffectedCode(affected),
       });

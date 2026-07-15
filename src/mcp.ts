@@ -32,6 +32,15 @@ export function createEvidriftMcpServer(repoRoot = process.cwd()): McpServer {
           packageName: z.string().describe('Installed npm dependency name.'),
           symbol: z.string().describe('Exported callable TypeScript symbol.'),
           parameter: z.string().optional().describe('Optional parameter name that must exist.'),
+          overload: z
+            .number()
+            .int()
+            .positive()
+            .max(Number.MAX_SAFE_INTEGER)
+            .optional()
+            .describe(
+              'Optional 1-based overload selector used only when recording an overloaded symbol.',
+            ),
           claim: z
             .string()
             .min(1)
@@ -58,6 +67,7 @@ export function createEvidriftMcpServer(repoRoot = process.cwd()): McpServer {
           packageName: input.packageName,
           symbol: input.symbol,
           ...(input.parameter === undefined ? {} : { parameter: input.parameter }),
+          ...(input.overload === undefined ? {} : { overload: input.overload }),
           claim: input.claim,
           affectedCode: {
             path: assertSafeRelativePath(input.affectedCodePath, 'Affected code', false),

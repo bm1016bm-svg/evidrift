@@ -5,12 +5,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
+import { EVIDRIFT_VERSION } from '../src/types.js';
+
 test('npm tarball contains the executable surface and excludes source, tests, and examples', async (t) => {
   const manifest = JSON.parse(await readFile(path.join(process.cwd(), 'package.json'), 'utf8')) as {
     private?: boolean;
+    version?: string;
     bin?: Record<string, string>;
   };
   assert.notEqual(manifest.private, true, 'A private package cannot back `npx evidrift`.');
+  assert.equal(manifest.version, EVIDRIFT_VERSION);
   assert.equal(manifest.bin?.evidrift, 'dist/src/cli.js');
   assert.equal(manifest.bin?.['evidrift-mcp'], 'dist/src/mcp.js');
 

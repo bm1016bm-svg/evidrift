@@ -133,7 +133,7 @@ Use all of them if they help. Evidrift covers one gap: the reason code was writt
 ```text
 evidrift init
 evidrift record --project <path> --package <name> --symbol <name> \
-  [--parameter <name>] --claim <text> --code <path[:line]>
+  [--parameter <name>] [--overload <number>] --claim <text> --code <path[:line]>
 evidrift check
 evidrift diff
 evidrift explain <receipt-id>
@@ -152,7 +152,7 @@ All commands accept `--root <repo>`. `record` requires an initialized `.evidrift
 4. Resolves declarations without importing package JavaScript, running shell commands, making network requests, or calling an LLM.
 5. Reports evidence integrity, source drift, semantic support, and runtime correctness separately.
 
-The parser refuses more than 1,024 Receipt IDs. TypeScript evidence is confined to repository files and capped at 256 source files, 2 MiB per file, and 16 MiB total. Dynamic text is rejected or escaped so a Receipt cannot inject terminal controls or fake CI lines.
+The parser refuses more than 1,024 Receipt IDs or 64 call signatures per symbol. TypeScript evidence is confined to repository files and capped at 256 source files, 2 MiB per file, and 16 MiB total. Dynamic text is rejected or escaped so a Receipt cannot inject terminal controls or fake CI lines.
 
 Content hashes detect inconsistent edits; they do not prove authorship. Someone who rewrites a Receipt, recalculates its ID, and changes `evidence.lock` can create new internally valid evidence. Git review and branch protection must catch that replacement. See [Architecture](docs/architecture.md).
 
@@ -160,9 +160,11 @@ Content hashes detect inconsistent edits; they do not prove authorship. Someone 
 
 Evidrift does not prove code is correct. It does not prove a free-text claim is true, inspect runtime behavior, eliminate hallucinations, scan dependency vulnerabilities, or validate arbitrary URLs.
 
-v0.1 checks one exported TypeScript symbol with exactly one call signature. It follows repository-local declaration imports, but does not expand every named type into a deep structural contract. Missing or unreadable source is a visible but non-blocking warning. These are deliberate limits, not hidden guarantees.
+The v0.2 source tree supports overloaded exported symbols through an explicit, 1-based `--overload` selector. The index is used only while recording; the Receipt stores the selected normalized signature and hash, so declaration reordering does not cause false drift. Evidrift does not yet infer an overload from the affected call site.
 
-The runnable [boss-fight test](examples/boss-fight-test/README.md) shows the exact behavior for three overloads using a complex cross-file type alias: `record` refuses the overload set cleanly and writes no Receipt.
+It follows repository-local declaration imports, but does not expand every named type into a deep structural contract. Missing or unreadable source is a visible but non-blocking warning. These are deliberate limits, not hidden guarantees.
+
+The runnable [boss-fight test](examples/boss-fight-test/README.md) records one of three overloads using a complex cross-file type alias, survives declaration reordering, and deterministically fails when only the selected overload changes.
 
 ## Development and UAT
 

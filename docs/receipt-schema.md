@@ -55,7 +55,7 @@ This format is deterministic but is not claimed to implement RFC 8785. Schema v1
 
 Receipt strings and paths use bounded, canonical forms. `evidence.lock` is limited to 1 MiB, each Receipt to 4 MiB, claims to 500 characters, and evidence paths to 4096 characters. Storage files must be regular files rather than symlinks.
 
-Content addressing checks internal consistency, not authorship. Replacing both a Receipt and its lock entry with a newly hashed payload is detectable in Git review but is not prevented cryptographically in v0.1.
+Content addressing checks internal consistency, not authorship. Replacing both a Receipt and its lock entry with a newly hashed payload is detectable in Git review but is not prevented cryptographically in v0.2.
 
 ## Meaning of fields
 
@@ -67,3 +67,5 @@ Content addressing checks internal consistency, not authorship. Replacing both a
 - `expectedSignature`: normalized call signature captured during record.
 - `signatureHash`: quick integrity and comparison value, always recomputed.
 - `id`: content address of all payload fields.
+
+For an overloaded symbol, `--overload` or the MCP `overload` input selects a signature only during record. The numeric index is deliberately absent from schema v1 because declaration order is not the contract. Later checks search the current overload set for `signatureHash`, so reordering does not require a new Receipt.

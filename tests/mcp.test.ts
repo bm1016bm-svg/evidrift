@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { test } from 'node:test';
 
@@ -51,6 +52,51 @@ test('STDIO MCP records through the same core and never declares verification', 
     assert.match(text.text, /RECORDED sha256:/);
     assert.match(text.text, /no verified or runtime-correctness claim was stored/);
     assert.doesNotMatch(text.text, /verified: true/i);
+    const lock = await readEvidenceLock(fixture.root);
+    assert.equal(lock.receipts.length, 1);
+  } finally {
+    await client.close();
+  }
+});
+
+test('STDIO MCP selects an overload through the shared deterministic core', async () => {
+  const fixture = await createFixtureRepository();
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    [
+      'export declare function parseConfig(input: string): string;',
+      'export declare function parseConfig(input: number, options: { radix: 2 | 10 }): number;',
+      '',
+    ].join('\n'),
+  );
+  await initEvidrift(fixture.root);
+  const client = new Client({ name: 'evidrift-overload-client', version: '1.0.0' });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [path.resolve(process.cwd(), 'dist', 'src', 'mcp.js')],
+    cwd: fixture.root,
+    stderr: 'pipe',
+  });
+  try {
+    await client.connect(transport);
+    const result = await client.callTool({
+      name: 'evidrift_record',
+      arguments: {
+        projectRoot: 'app',
+        packageName: '@evidrift/demo-contract',
+        symbol: 'parseConfig',
+        parameter: 'options',
+        overload: 2,
+        claim: 'The numeric overload accepts radix options.',
+        affectedCodePath: 'app/src/index.ts',
+        affectedCodeLine: 2,
+      },
+    });
+    assert.equal(result.isError, undefined);
+    assert.ok(Array.isArray(result.content));
+    const text = result.content.find(isTextContent);
+    assert.ok(text);
+    assert.match(text.text, /Expected signature: parseConfig\(input:number/u);
     const lock = await readEvidenceLock(fixture.root);
     assert.equal(lock.receipts.length, 1);
   } finally {
