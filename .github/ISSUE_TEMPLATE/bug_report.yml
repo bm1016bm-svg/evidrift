@@ -1,5 +1,5 @@
 name: Bug report
-description: Report reproducible incorrect Litmo behavior.
+description: Report reproducible incorrect Evidrift behavior.
 title: 'bug: '
 labels: [bug]
 body:
@@ -9,7 +9,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Litmo version or commit
+      label: Evidrift version or commit
     validations:
       required: true
   - type: textarea

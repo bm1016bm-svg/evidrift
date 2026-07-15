@@ -2,7 +2,7 @@ export {
   checkExitCode,
   checkRepository,
   explainEvidence,
-  initLitmo,
+  initEvidrift,
   recordEvidence,
 } from './core.js';
 export { canonicalStringify, contentHash, sha256 } from './canonical.js';

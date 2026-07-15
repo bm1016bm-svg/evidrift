@@ -23,7 +23,7 @@ import {
   type RecordInput,
 } from './types.js';
 
-export async function initLitmo(repoRoot: string): Promise<boolean> {
+export async function initEvidrift(repoRoot: string): Promise<boolean> {
   return initializeRepository(await realpath(repoRoot));
 }
 

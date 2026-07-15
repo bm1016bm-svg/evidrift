@@ -14,7 +14,7 @@ import {
   type TypeScriptSymbolEvidence,
 } from './types.js';
 
-const LITMO_DIRECTORY = '.litmo';
+const EVIDRIFT_DIRECTORY = '.evidrift';
 const LOCK_FILE = 'evidence.lock';
 const RECEIPTS_DIRECTORY = 'receipts';
 const SHA256_ID = /^sha256:[a-f0-9]{64}$/;
@@ -235,12 +235,12 @@ function parseLock(value: unknown): EvidenceLock {
   return { schemaVersion: LOCK_SCHEMA_VERSION, receipts };
 }
 
-function paths(repoRoot: string): { litmo: string; lock: string; receipts: string } {
-  const litmo = path.join(repoRoot, LITMO_DIRECTORY);
+function paths(repoRoot: string): { evidrift: string; lock: string; receipts: string } {
+  const evidrift = path.join(repoRoot, EVIDRIFT_DIRECTORY);
   return {
-    litmo,
-    lock: path.join(litmo, LOCK_FILE),
-    receipts: path.join(litmo, RECEIPTS_DIRECTORY),
+    evidrift,
+    lock: path.join(evidrift, LOCK_FILE),
+    receipts: path.join(evidrift, RECEIPTS_DIRECTORY),
   };
 }
 
@@ -278,10 +278,10 @@ async function ensureSafeDirectory(
 async function storagePaths(
   repoRoot: string,
   create: boolean,
-): Promise<{ litmo: string; lock: string; receipts: string }> {
+): Promise<{ evidrift: string; lock: string; receipts: string }> {
   const target = paths(repoRoot);
-  await ensureSafeDirectory(repoRoot, target.litmo, '.litmo', create);
-  await ensureSafeDirectory(repoRoot, target.receipts, '.litmo/receipts', create);
+  await ensureSafeDirectory(repoRoot, target.evidrift, '.evidrift', create);
+  await ensureSafeDirectory(repoRoot, target.receipts, '.evidrift/receipts', create);
   return target;
 }
 
@@ -346,7 +346,7 @@ export async function readEvidenceLock(repoRoot: string): Promise<EvidenceLock> 
     if (error instanceof IntegrityError) {
       throw error;
     }
-    throw new IntegrityError('Missing or unreadable .litmo/evidence.lock; run `litmo init`.');
+    throw new IntegrityError('Missing or unreadable .evidrift/evidence.lock; run `evidrift init`.');
   }
 }
 

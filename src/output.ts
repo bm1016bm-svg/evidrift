@@ -53,7 +53,7 @@ export function renderRecord(receipt: Receipt, options: RenderOptions = {}): str
     `Expected signature: ${escapeOutputText(receipt.evidence.expectedSignature)}`,
     `Affected code location: ${escapeOutputText(affectedCodeLabel(receipt.affectedCode.path, receipt.affectedCode.line))}`,
     `Receipt ID: ${receiptId}`,
-    `Receipt file: .litmo/receipts/${escapeOutputText(receipt.id.slice('sha256:'.length))}.json`,
+    `Receipt file: .evidrift/receipts/${escapeOutputText(receipt.id.slice('sha256:'.length))}.json`,
     'State: recorded evidence; no verified or runtime-correctness claim was stored.',
   ].join('\n');
 }
@@ -106,7 +106,7 @@ export function renderResult(result: CheckResult, options: RenderOptions = {}): 
   }
   if (result.status === 'integrity_error') {
     lines.push(
-      'Action: Do not trust or hand-edit this Receipt. Restore it from version control, or intentionally create a new Receipt with `litmo record`.',
+      'Action: Do not trust or hand-edit this Receipt. Restore it from version control, or intentionally create a new Receipt with `evidrift record`.',
     );
   }
   return lines.join('\n');
@@ -156,7 +156,7 @@ export function renderExplain(result: CheckResult, options: RenderOptions = {}):
     `Evidence integrity: ${integrity}`,
     `Source drift: ${sourceDrift}`,
     `Semantic support: ${semanticSupport}`,
-    'Runtime correctness: not evaluated by Litmo',
+    'Runtime correctness: not evaluated by Evidrift',
   ].join('\n');
 }
 
@@ -164,14 +164,14 @@ export function renderDemo(result: DemoResult, options: RenderOptions = {}): str
   const style = terminalStyle(options);
   const title =
     options.interactive === true
-      ? style.cyan.bold('⚡ Litmo signature-drift demo')
-      : 'Litmo signature-drift demo';
+      ? style.cyan.bold('⚡ Evidrift signature-drift demo')
+      : 'Evidrift signature-drift demo';
   const section = (value: string): string =>
     options.interactive === true ? style.cyan.bold(value) : value;
   const caught =
     options.interactive === true
-      ? style.red.bold('❌ Litmo caught the dependency contract drift before merge.')
-      : 'Litmo caught the dependency contract drift before merge.';
+      ? style.red.bold('❌ Evidrift caught the dependency contract drift before merge.')
+      : 'Evidrift caught the dependency contract drift before merge.';
   return [
     title,
     `Workspace: ${escapeOutputText(result.workspace)}`,
@@ -186,6 +186,6 @@ export function renderDemo(result: DemoResult, options: RenderOptions = {}): str
     renderCheck(result.drift, options),
     '',
     caught,
-    'Next: inspect the generated .litmo-demo/signature-drift workspace or run `litmo demo` again.',
+    'Next: inspect the generated .evidrift-demo/signature-drift workspace or run `evidrift demo` again.',
   ].join('\n');
 }

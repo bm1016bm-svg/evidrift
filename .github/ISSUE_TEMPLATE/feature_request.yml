@@ -1,5 +1,5 @@
 name: Feature request
-description: Propose a narrowly scoped, deterministic Litmo improvement.
+description: Propose a narrowly scoped, deterministic Evidrift improvement.
 title: 'proposal: '
 labels: [enhancement]
 body:
@@ -29,5 +29,5 @@ body:
     attributes:
       label: Scope check
       options:
-        - label: This can be tested without paid APIs, secrets, or a Litmo backend.
+        - label: This can be tested without paid APIs, secrets, or a Evidrift backend.
           required: true

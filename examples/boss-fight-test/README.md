@@ -12,7 +12,7 @@ npm run build
 node --test --test-name-pattern "boss-fight" dist/tests/uat.test.js
 ```
 
-The test installs these two source files in a temporary local fixture package and runs `litmo record`. v0.1 resolves the repository-local cross-file import, then refuses the overload set:
+The test installs these two source files in a temporary local fixture package and runs `evidrift record`. v0.1 resolves the repository-local cross-file import, then refuses the overload set:
 
 ```text
 ERROR: v0.1 supports symbols with exactly one call signature.

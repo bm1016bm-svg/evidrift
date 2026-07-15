@@ -12,7 +12,7 @@ Include the affected commit, platform, reproduction steps, impact, and any sugge
 
 ## Security model
 
-Litmo treats `.litmo/evidence.lock` and every Receipt as untrusted input. The supported adapter reads bounded local JSON and TypeScript declaration files; it does not execute dependencies, package scripts, shell commands, network requests, or LLM calls.
+Evidrift treats `.evidrift/evidence.lock` and every Receipt as untrusted input. The supported adapter reads bounded local JSON and TypeScript declaration files; it does not execute dependencies, package scripts, shell commands, network requests, or LLM calls.
 
 Security-sensitive reports include:
 
@@ -23,4 +23,4 @@ Security-sensitive reports include:
 - a deterministic mismatch incorrectly reported as pass;
 - MCP inputs bypassing CLI/core validation.
 
-Litmo does not scan dependencies for vulnerabilities and does not prove runtime safety.
+Evidrift does not scan dependencies for vulnerabilities and does not prove runtime safety.

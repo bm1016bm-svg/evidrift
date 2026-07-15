@@ -5,7 +5,7 @@ import { test } from 'node:test';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
-import { initLitmo } from '../src/core.js';
+import { initEvidrift } from '../src/core.js';
 import { readEvidenceLock } from '../src/storage.js';
 import { createFixtureRepository } from './helpers.js';
 
@@ -22,8 +22,8 @@ function isTextContent(value: unknown): value is { type: 'text'; text: string } 
 
 test('STDIO MCP records through the same core and never declares verification', async () => {
   const fixture = await createFixtureRepository();
-  await initLitmo(fixture.root);
-  const client = new Client({ name: 'litmo-test-client', version: '1.0.0' });
+  await initEvidrift(fixture.root);
+  const client = new Client({ name: 'evidrift-test-client', version: '1.0.0' });
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [path.resolve(process.cwd(), 'dist', 'src', 'mcp.js')],
@@ -33,10 +33,10 @@ test('STDIO MCP records through the same core and never declares verification', 
   try {
     await client.connect(transport);
     const result = await client.callTool({
-      name: 'litmo_record',
+      name: 'evidrift_record',
       arguments: {
         projectRoot: 'app',
-        packageName: '@litmo/demo-contract',
+        packageName: '@evidrift/demo-contract',
         symbol: 'parseConfig',
         parameter: 'options',
         claim: 'parseConfig accepts an optional options parameter.',
@@ -60,8 +60,8 @@ test('STDIO MCP records through the same core and never declares verification', 
 
 test('STDIO MCP rejects URLs and raw verification fields without writing a receipt', async () => {
   const fixture = await createFixtureRepository();
-  await initLitmo(fixture.root);
-  const client = new Client({ name: 'litmo-uat-client', version: '1.0.0' });
+  await initEvidrift(fixture.root);
+  const client = new Client({ name: 'evidrift-uat-client', version: '1.0.0' });
   const transport = new StdioClientTransport({
     command: process.execPath,
     args: [path.resolve(process.cwd(), 'dist', 'src', 'mcp.js')],
@@ -71,7 +71,7 @@ test('STDIO MCP rejects URLs and raw verification fields without writing a recei
   try {
     await client.connect(transport);
     const urlResult = await client.callTool({
-      name: 'litmo_record',
+      name: 'evidrift_record',
       arguments: {
         projectRoot: 'app',
         packageName: 'https://does-not-exist.invalid/package',
@@ -87,10 +87,10 @@ test('STDIO MCP rejects URLs and raw verification fields without writing a recei
     assert.match(urlText.text, /registry-style npm package name, not a path or URL/);
 
     const rawStatusResult = await client.callTool({
-      name: 'litmo_record',
+      name: 'evidrift_record',
       arguments: {
         projectRoot: 'app',
-        packageName: '@litmo/demo-contract',
+        packageName: '@evidrift/demo-contract',
         symbol: 'parseConfig',
         claim: 'Raw status fields must be rejected.',
         affectedCodePath: 'app/src/index.ts',

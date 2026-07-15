@@ -20,9 +20,9 @@ export interface FixtureRepository {
 }
 
 export async function createFixtureRepository(): Promise<FixtureRepository> {
-  const root = await mkdtemp(path.join(tmpdir(), 'litmo-test-'));
+  const root = await mkdtemp(path.join(tmpdir(), 'evidrift-test-'));
   const app = path.join(root, 'app');
-  const dependency = path.join(app, 'node_modules', '@litmo', 'demo-contract');
+  const dependency = path.join(app, 'node_modules', '@evidrift', 'demo-contract');
   await mkdir(path.join(app, 'src'), { recursive: true });
   await mkdir(dependency, { recursive: true });
   await writeFile(
@@ -33,7 +33,7 @@ export async function createFixtureRepository(): Promise<FixtureRepository> {
     path.join(dependency, 'package.json'),
     `${JSON.stringify(
       {
-        name: '@litmo/demo-contract',
+        name: '@evidrift/demo-contract',
         version: '1.0.0',
         type: 'module',
         main: 'index.js',
@@ -50,7 +50,7 @@ export async function createFixtureRepository(): Promise<FixtureRepository> {
   );
   await writeFile(
     path.join(app, 'src', 'index.ts'),
-    "import { parseConfig } from '@litmo/demo-contract';\nparseConfig('x', { strict: true });\n",
+    "import { parseConfig } from '@evidrift/demo-contract';\nparseConfig('x', { strict: true });\n",
   );
   return { root, app, dependency };
 }

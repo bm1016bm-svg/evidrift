@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping keep Litmo small, deterministic, and honest.
+Thanks for helping keep Evidrift small, deterministic, and honest.
 
 ## Setup
 

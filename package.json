@@ -1,5 +1,5 @@
 {
-  "name": "litmo",
+  "name": "evidrift",
   "version": "0.1.0",
   "description": "Evidence lockfile for AI-generated code. Revalidate TypeScript dependency contracts in CI via CLI or MCP.",
   "keywords": [
@@ -15,19 +15,19 @@
     "provenance",
     "typescript"
   ],
-  "homepage": "https://github.com/bm1016bm-svg/litmo#readme",
+  "homepage": "https://github.com/bm1016bm-svg/evidrift#readme",
   "bugs": {
-    "url": "https://github.com/bm1016bm-svg/litmo/issues"
+    "url": "https://github.com/bm1016bm-svg/evidrift/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bm1016bm-svg/litmo.git"
+    "url": "git+https://github.com/bm1016bm-svg/evidrift.git"
   },
   "license": "MPL-2.0",
   "type": "module",
   "bin": {
-    "litmo": "dist/src/cli.js",
-    "litmo-mcp": "dist/src/mcp.js"
+    "evidrift": "dist/src/cli.js",
+    "evidrift-mcp": "dist/src/mcp.js"
   },
   "exports": {
     ".": "./dist/src/index.js"

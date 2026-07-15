@@ -13,4 +13,4 @@ npm ci
 npm run demo
 ```
 
-The command leaves the generated scenario at `.litmo-demo/signature-drift` for inspection. Running it again safely recreates only that marked Litmo workspace; it does not modify these tracked fixtures.
+The command leaves the generated scenario at `.evidrift-demo/signature-drift` for inspection. Running it again safely recreates only that marked Evidrift workspace; it does not modify these tracked fixtures.

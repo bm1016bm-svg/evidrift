@@ -1,5 +1,5 @@
 {
-  "name": "@litmo/demo-contract",
+  "name": "@evidrift/demo-contract",
   "version": "1.0.0",
   "private": true,
   "type": "module",

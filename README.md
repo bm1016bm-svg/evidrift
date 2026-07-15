@@ -1,42 +1,40 @@
-# Litmo — evidence lockfile for AI coding agents
+# Evidrift — evidence lockfile for AI coding agents
 
-[![CI](https://github.com/bm1016bm-svg/litmo/actions/workflows/ci.yml/badge.svg)](https://github.com/bm1016bm-svg/litmo/actions/workflows/ci.yml)
+[![CI](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml/badge.svg)](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml)
 
 > **The lockfile for AI assumptions—version control for the “why” behind your code.**
 
-Litmo records deterministic TypeScript dependency contracts behind AI-generated code, then revalidates them locally or in CI. Coding agents use its STDIO MCP server; humans and CI use the same local-first CLI. No cloud account. No LLM judge. No package code execution.
-
-![Litmo — AI dependency lockfile](docs/assets/litmo-hero.png)
+Evidrift records deterministic TypeScript dependency contracts behind AI-generated code, then revalidates them locally or in CI. Coding agents use its STDIO MCP server; humans and CI use the same local-first CLI. No cloud account. No LLM judge. No package code execution.
 
 ## Installation
 
 The package is ready for zero-install use after the first npm release:
 
 ```bash
-npx litmo init
+npx evidrift init
 ```
 
-That command runs in the current repository; no global install or Litmo account is required. Node.js 22 or newer is still required because `npx` ships with Node/npm.
+That command runs in the current repository; no global install or Evidrift account is required. Node.js 22 or newer is still required because `npx` ships with Node/npm.
 
-On a cold npm cache, npm may ask once before downloading an uninstalled package. That prompt belongs to `npx`, not Litmo. For fully non-interactive use, run `npx --yes litmo init`.
+On a cold npm cache, npm may ask once before downloading an uninstalled package. That prompt belongs to `npx`, not Evidrift. For fully non-interactive use, run `npx --yes evidrift init`.
 
-**Current status:** the public repository and CI are live, but the npm package is not published. The unscoped `litmo` name returned `E404` from the official npm registry on 2026-07-15. Release remains blocked on final package-name clearance and npm authentication. From this checkout, use:
+**Current status:** the public repository and CI are live, but the npm package is not published. The unscoped `evidrift` name returned `E404` from the official npm registry on 2026-07-15. Release remains intentionally pending npm authentication. From this checkout, use:
 
 ```bash
 npm ci
 npm run build
 npm link
-litmo --help
+evidrift --help
 ```
 
-The packed artifact has been tested through real `npx --package <local-tarball> litmo init`; the remaining step is registry publication, not CLI packaging.
+The packed artifact has been tested through real `npx --package <local-tarball> evidrift init`; the remaining step is registry publication, not CLI packaging.
 
 ## Quick Start
 
 After npm publication, the one-command demo is:
 
 ```bash
-npx litmo demo
+npx evidrift demo
 ```
 
 From this checkout, run the same self-contained demo with:
@@ -46,7 +44,7 @@ npm ci
 npm run demo
 ```
 
-The demo creates an ignored `.litmo-demo/signature-drift` workspace, records the optional `options` parameter on `parseConfig`, checks it successfully, changes the fixture so `options` is required, then shows the deterministic failure. It executes no downloaded package code.
+The demo creates an ignored `.evidrift-demo/signature-drift` workspace, records the optional `options` parameter on `parseConfig`, checks it successfully, changes the fixture so `options` is required, then shows the deterministic failure. It executes no downloaded package code.
 
 ```text
 FAIL contract_mismatch sha256:...
@@ -66,9 +64,9 @@ The dependency must already be installed inside the target repository, and the a
 
 ```bash
 cd /path/to/your/repository
-litmo init
+evidrift init
 
-litmo record \
+evidrift record \
   --project . \
   --package your-package \
   --symbol exportedFunction \
@@ -76,23 +74,23 @@ litmo record \
   --claim "exportedFunction accepts the options used here." \
   --code src/caller.ts:12
 
-litmo check
+evidrift check
 ```
 
-Coding agents call the same record path through `litmo_record`. Minimal [Codex, Claude Code, and Cursor setup](docs/mcp.md) is included.
+Coding agents call the same record path through `evidrift_record`. Minimal [Codex, Claude Code, and Cursor setup](docs/mcp.md) is included.
 
 ## The Files
 
-Litmo writes one lock and one immutable JSON file per Receipt:
+Evidrift writes one lock and one immutable JSON file per Receipt:
 
 ```text
-.litmo/
+.evidrift/
   evidence.lock
   receipts/
     <64-character-sha256>.json
 ```
 
-There is no `.litmo/receipts.json`. `evidence.lock` contains only content-addressed Receipt IDs:
+There is no `.evidrift/receipts.json`. `evidence.lock` contains only content-addressed Receipt IDs:
 
 ```json
 {
@@ -105,7 +103,7 @@ Each Receipt stores the claim, affected code, installed package version, resolve
 
 ## CI Behavior
 
-`litmo check` does not trust saved `matched` or `verified` flags. It validates the Receipt, resolves the installed package again, and recomputes the signature.
+`evidrift check` does not trust saved `matched` or `verified` flags. It validates the Receipt, resolves the installed package again, and recomputes the signature.
 
 | Result                    | Meaning                                                        | Exit |
 | ------------------------- | -------------------------------------------------------------- | ---: |
@@ -121,7 +119,7 @@ A one-line manual edit to a Receipt produces an actionable integrity report:
 FAIL evidence_integrity sha256:...
 Message: Receipt content hash mismatch.
 Receipt ID: sha256:...
-Action: Do not trust or hand-edit this Receipt. Restore it from version control, or intentionally create a new Receipt with `litmo record`.
+Action: Do not trust or hand-edit this Receipt. Restore it from version control, or intentionally create a new Receipt with `evidrift record`.
 ```
 
 The included GitHub Actions workflow runs the full gate on Node.js 22 and 24. Third-party Actions are pinned to full commit SHAs.
@@ -130,31 +128,31 @@ In a human TTY, `check`, `diff`, `explain`, and `demo` use a spinner plus green 
 
 ## Why This Is Not RAG, Sonar, or AI Review
 
-| Tool                  | Its job                                        | Litmo's job                                            |
+| Tool                  | Its job                                        | Evidrift's job                                         |
 | --------------------- | ---------------------------------------------- | ------------------------------------------------------ |
 | RAG                   | Fetch context while an answer is being written | Commit one assumption and check it again later         |
 | Sonar/static analysis | Find code patterns and quality problems        | Revalidate an explicit external dependency contract    |
 | AI code review        | Make a probabilistic judgment                  | Produce a deterministic result without an LLM CI judge |
 
-Use all of them if they help. Litmo covers one gap: the reason code was written can go stale even when the code itself did not change.
+Use all of them if they help. Evidrift covers one gap: the reason code was written can go stale even when the code itself did not change.
 
 ## CLI
 
 ```text
-litmo init
-litmo record --project <path> --package <name> --symbol <name> \
+evidrift init
+evidrift record --project <path> --package <name> --symbol <name> \
   [--parameter <name>] --claim <text> --code <path[:line]>
-litmo check
-litmo diff
-litmo explain <receipt-id>
-litmo demo
+evidrift check
+evidrift diff
+evidrift explain <receipt-id>
+evidrift demo
 ```
 
-All commands accept `--root <repo>`. `record` requires an initialized `.litmo/evidence.lock`.
+All commands accept `--root <repo>`. `record` requires an initialized `.evidrift/evidence.lock`.
 
 ## Trust Boundary
 
-`.litmo/receipts/*.json` is untrusted input. Every check:
+`.evidrift/receipts/*.json` is untrusted input. Every check:
 
 1. Strictly validates lock and Receipt schemas.
 2. Derives file paths only from full SHA-256 IDs.
@@ -166,9 +164,9 @@ The parser refuses more than 1,024 Receipt IDs. TypeScript evidence is confined 
 
 Content hashes detect inconsistent edits; they do not prove authorship. Someone who rewrites a Receipt, recalculates its ID, and changes `evidence.lock` can create new internally valid evidence. Git review and branch protection must catch that replacement. See [Architecture](docs/architecture.md).
 
-## What Litmo Does Not Prove
+## What Evidrift Does Not Prove
 
-Litmo does not prove code is correct. It does not prove a free-text claim is true, inspect runtime behavior, eliminate hallucinations, scan dependency vulnerabilities, or validate arbitrary URLs.
+Evidrift does not prove code is correct. It does not prove a free-text claim is true, inspect runtime behavior, eliminate hallucinations, scan dependency vulnerabilities, or validate arbitrary URLs.
 
 v0.1 checks one exported TypeScript symbol with exactly one call signature. It follows repository-local declaration imports, but does not expand every named type into a deep structural contract. Missing or unreadable source is a visible but non-blocking warning. These are deliberate limits, not hidden guarantees.
 
@@ -185,7 +183,7 @@ npm run uat
 npm run check
 ```
 
-`npm run verify` runs the release gate. Tests use temporary local fixtures and require no secrets, paid APIs, Litmo backend, or network access. The detailed [UAT report](docs/UAT.md) maps each acceptance case to an automated test and states the remaining risks.
+`npm run verify` runs the release gate. Tests use temporary local fixtures and require no secrets, paid APIs, Evidrift backend, or network access. The detailed [UAT report](docs/UAT.md) maps each acceptance case to an automated test and states the remaining risks.
 
 ## License
 

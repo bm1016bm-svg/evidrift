@@ -7,7 +7,7 @@ import {
   checkExitCode,
   checkRepository,
   explainEvidence,
-  initLitmo,
+  initEvidrift,
   recordEvidence,
   resolveCliProjectRoot,
 } from './core.js';
@@ -16,18 +16,18 @@ import { assertSafeRelativePath } from './paths.js';
 import { renderCheck, renderDemo, renderExplain, renderRecord, renderResult } from './output.js';
 import { interactiveTerminalEnabled, withTerminalProgress } from './terminal.js';
 import { escapeOutputText } from './text.js';
-import { LITMO_VERSION, type AffectedCode } from './types.js';
+import { EVIDRIFT_VERSION, type AffectedCode } from './types.js';
 
-const HELP = `Litmo ${LITMO_VERSION} - the lockfile for AI assumptions
+const HELP = `Evidrift ${EVIDRIFT_VERSION} - the lockfile for AI assumptions
 
 Usage:
-  litmo init [--root <repo>]
-  litmo record --package <name> --symbol <name> [--parameter <name>]
+  evidrift init [--root <repo>]
+  evidrift record --package <name> --symbol <name> [--parameter <name>]
                --claim <text> --code <path[:line]> [--project <path>] [--root <repo>]
-  litmo check [--root <repo>]
-  litmo diff [--root <repo>]
-  litmo explain <receipt-id> [--root <repo>]
-  litmo demo [--root <directory>]
+  evidrift check [--root <repo>]
+  evidrift diff [--root <repo>]
+  evidrift explain <receipt-id> [--root <repo>]
+  evidrift demo [--root <directory>]
 
 Exit codes for check: 0 match/warning, 1 contract mismatch, 2 evidence integrity error.`;
 
@@ -110,7 +110,7 @@ export async function runCli(argv: string[]): Promise<number> {
   const parsed = parseArguments(argv);
   const renderOptions = { interactive: interactiveTerminalEnabled() };
   if (parsed.version) {
-    console.log(LITMO_VERSION);
+    console.log(EVIDRIFT_VERSION);
     return 0;
   }
   if (parsed.help || parsed.command === undefined) {
@@ -123,20 +123,20 @@ export async function runCli(argv: string[]): Promise<number> {
     case 'init': {
       ensureOptions(parsed, ['root']);
       if (parsed.positionals.length > 0) {
-        throw new Error('litmo init does not accept positional arguments.');
+        throw new Error('evidrift init does not accept positional arguments.');
       }
-      const created = await initLitmo(repoRoot);
+      const created = await initEvidrift(repoRoot);
       console.log(
         created
-          ? 'Initialized .litmo/evidence.lock and .litmo/receipts/.'
-          : 'Litmo already initialized.',
+          ? 'Initialized .evidrift/evidence.lock and .evidrift/receipts/.'
+          : 'Evidrift already initialized.',
       );
       return 0;
     }
     case 'record': {
       ensureOptions(parsed, ['claim', 'code', 'package', 'parameter', 'project', 'root', 'symbol']);
       if (parsed.positionals.length > 0) {
-        throw new Error('litmo record does not accept positional arguments.');
+        throw new Error('evidrift record does not accept positional arguments.');
       }
       const packageName = option(parsed, 'package', true);
       const symbol = option(parsed, 'symbol', true);
@@ -167,9 +167,9 @@ export async function runCli(argv: string[]): Promise<number> {
     case 'check': {
       ensureOptions(parsed, ['root']);
       if (parsed.positionals.length > 0) {
-        throw new Error('litmo check does not accept positional arguments.');
+        throw new Error('evidrift check does not accept positional arguments.');
       }
-      const results = await withTerminalProgress('Revalidating Litmo evidence…', () =>
+      const results = await withTerminalProgress('Revalidating Evidrift evidence…', () =>
         checkRepository(repoRoot),
       );
       console.log(renderCheck(results, renderOptions));
@@ -178,9 +178,9 @@ export async function runCli(argv: string[]): Promise<number> {
     case 'diff': {
       ensureOptions(parsed, ['root']);
       if (parsed.positionals.length > 0) {
-        throw new Error('litmo diff does not accept positional arguments.');
+        throw new Error('evidrift diff does not accept positional arguments.');
       }
-      const results = await withTerminalProgress('Comparing Litmo evidence…', () =>
+      const results = await withTerminalProgress('Comparing Evidrift evidence…', () =>
         checkRepository(repoRoot),
       );
       const changed = results.filter((result) => result.status !== 'pass');
@@ -194,9 +194,9 @@ export async function runCli(argv: string[]): Promise<number> {
     case 'explain': {
       ensureOptions(parsed, ['root']);
       if (parsed.positionals.length !== 1 || parsed.positionals[0] === undefined) {
-        throw new Error('litmo explain requires one full receipt ID.');
+        throw new Error('evidrift explain requires one full receipt ID.');
       }
-      const result = await withTerminalProgress('Explaining Litmo evidence…', () =>
+      const result = await withTerminalProgress('Explaining Evidrift evidence…', () =>
         explainEvidence(repoRoot, parsed.positionals[0] as string),
       );
       console.log(renderExplain(result, renderOptions));
@@ -205,10 +205,10 @@ export async function runCli(argv: string[]): Promise<number> {
     case 'demo': {
       ensureOptions(parsed, ['root']);
       if (parsed.positionals.length > 0) {
-        throw new Error('litmo demo does not accept positional arguments.');
+        throw new Error('evidrift demo does not accept positional arguments.');
       }
       const result = await withTerminalProgress(
-        'Creating the Litmo signature-drift demo…',
+        'Creating the Evidrift signature-drift demo…',
         (report) => runSignatureDriftDemo(repoRoot, report),
       );
       console.log(renderDemo(result, renderOptions));

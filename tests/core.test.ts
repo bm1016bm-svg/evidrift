@@ -4,16 +4,16 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 
-import { checkExitCode, checkRepository, initLitmo, recordEvidence } from '../src/core.js';
+import { checkExitCode, checkRepository, initEvidrift, recordEvidence } from '../src/core.js';
 import { changeFixtureVersion, createFixtureRepository, DRIFTED_DECLARATION } from './helpers.js';
 
 async function recordFixture() {
   const fixture = await createFixtureRepository();
-  await initLitmo(fixture.root);
+  await initEvidrift(fixture.root);
   const receipt = await recordEvidence({
     repoRoot: fixture.root,
     projectRoot: fixture.app,
-    packageName: '@litmo/demo-contract',
+    packageName: '@evidrift/demo-contract',
     symbol: 'parseConfig',
     parameter: 'options',
     claim: 'parseConfig accepts an optional options parameter.',
@@ -28,7 +28,7 @@ test('records content-addressed evidence and revalidates it', async () => {
   assert.equal(receipt.evidence.package.version, '1.0.0');
   assert.equal(
     receipt.evidence.package.resolvedPath,
-    'app/node_modules/@litmo/demo-contract/index.d.ts',
+    'app/node_modules/@evidrift/demo-contract/index.d.ts',
   );
   assert.match(
     receipt.evidence.expectedSignature,
@@ -66,11 +66,11 @@ test('distinct string-literal whitespace produces a deterministic mismatch', asy
     path.join(fixture.dependency, 'index.d.ts'),
     'export declare function parseConfig(mode: "a b"): void;\n',
   );
-  await initLitmo(fixture.root);
+  await initEvidrift(fixture.root);
   await recordEvidence({
     repoRoot: fixture.root,
     projectRoot: fixture.app,
-    packageName: '@litmo/demo-contract',
+    packageName: '@evidrift/demo-contract',
     symbol: 'parseConfig',
     parameter: 'mode',
     claim: 'The exact string-literal mode is part of the dependency contract.',
@@ -103,11 +103,11 @@ test('transitive declarations inside the repository remain supported', async () 
     ].join('\n'),
   );
 
-  await initLitmo(fixture.root);
+  await initEvidrift(fixture.root);
   await recordEvidence({
     repoRoot: fixture.root,
     projectRoot: fixture.app,
-    packageName: '@litmo/demo-contract',
+    packageName: '@evidrift/demo-contract',
     symbol: 'parseConfig',
     parameter: 'options',
     claim: 'Repository-confined transitive declarations remain usable.',
@@ -135,11 +135,11 @@ test('dependency JavaScript is never executed while recording evidence', async (
     path.join(fixture.dependency, 'index.js'),
     "throw new Error('must not execute');\n",
   );
-  await initLitmo(fixture.root);
+  await initEvidrift(fixture.root);
   const receipt = await recordEvidence({
     repoRoot: fixture.root,
     projectRoot: fixture.app,
-    packageName: '@litmo/demo-contract',
+    packageName: '@evidrift/demo-contract',
     symbol: 'parseConfig',
     parameter: 'options',
     claim: 'The declaration contract is recorded without importing package code.',
@@ -152,7 +152,7 @@ test('tampered receipt is rejected before source revalidation', async () => {
   const { fixture, receipt } = await recordFixture();
   const receiptPath = path.join(
     fixture.root,
-    '.litmo',
+    '.evidrift',
     'receipts',
     `${receipt.id.slice('sha256:'.length)}.json`,
   );
@@ -167,7 +167,7 @@ test('oversized untrusted receipt is rejected before it is read', async () => {
   const { fixture, receipt } = await recordFixture();
   const receiptPath = path.join(
     fixture.root,
-    '.litmo',
+    '.evidrift',
     'receipts',
     `${receipt.id.slice('sha256:'.length)}.json`,
   );
@@ -180,8 +180,8 @@ test('oversized untrusted receipt is rejected before it is read', async () => {
 
 test('receipt directory symlink is rejected instead of following untrusted storage', async (t) => {
   const { fixture, receipt } = await recordFixture();
-  const receiptsPath = path.join(fixture.root, '.litmo', 'receipts');
-  const outside = await mkdtemp(path.join(tmpdir(), 'litmo-outside-'));
+  const receiptsPath = path.join(fixture.root, '.evidrift', 'receipts');
+  const outside = await mkdtemp(path.join(tmpdir(), 'evidrift-outside-'));
   t.after(async () => rm(outside, { recursive: true, force: true }));
   const outsideReceipt = path.join(outside, `${receipt.id.slice('sha256:'.length)}.json`);
   await writeFile(outsideReceipt, `${JSON.stringify(receipt)}\n`);
@@ -203,6 +203,6 @@ test('receipt directory symlink is rejected instead of following untrusted stora
 
   const results = await checkRepository(fixture.root);
   assert.equal(results[0]?.status, 'integrity_error');
-  assert.match(results[0]?.message ?? '', /.litmo\/receipts must be a real directory/);
+  assert.match(results[0]?.message ?? '', /.evidrift\/receipts must be a real directory/);
   assert.equal(checkExitCode(results), 2);
 });

@@ -1,12 +1,12 @@
 import { lstat, mkdir, readFile, realpath, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
-import { checkRepository, initLitmo, recordEvidence } from './core.js';
+import { checkRepository, initEvidrift, recordEvidence } from './core.js';
 import { isInside } from './paths.js';
 import type { ProgressReporter } from './terminal.js';
 import type { CheckResult, Receipt } from './types.js';
 
-const DEMO_MARKER = 'litmo-generated-signature-drift-demo-v1\n';
+const DEMO_MARKER = 'evidrift-generated-signature-drift-demo-v1\n';
 const BASE_DECLARATION = `export interface ParseOptions { strict?: boolean; }
 export interface ParseResult { value: string; }
 export declare function parseConfig(input: string, options?: ParseOptions): ParseResult;
@@ -56,13 +56,13 @@ async function assertRealDirectoryIfPresent(
 }
 
 async function assertGeneratedWorkspace(demoRoot: string): Promise<void> {
-  const marker = path.join(demoRoot, '.litmo-generated');
+  const marker = path.join(demoRoot, '.evidrift-generated');
   let metadata;
   try {
     metadata = await lstat(marker);
   } catch {
     throw new Error(
-      'Existing .litmo-demo/signature-drift is not marked as Litmo-generated; refusing to delete it.',
+      'Existing .evidrift-demo/signature-drift is not marked as Evidrift-generated; refusing to delete it.',
     );
   }
   if (
@@ -71,7 +71,7 @@ async function assertGeneratedWorkspace(demoRoot: string): Promise<void> {
     (await readFile(marker, 'utf8')) !== DEMO_MARKER
   ) {
     throw new Error(
-      'Existing .litmo-demo/signature-drift is not marked as Litmo-generated; refusing to delete it.',
+      'Existing .evidrift-demo/signature-drift is not marked as Evidrift-generated; refusing to delete it.',
     );
   }
 }
@@ -81,11 +81,11 @@ async function prepareWorkspace(repository: string): Promise<{
   appRoot: string;
   declaration: string;
 }> {
-  const demoParent = path.join(repository, '.litmo-demo');
+  const demoParent = path.join(repository, '.evidrift-demo');
   const demoRoot = path.join(demoParent, 'signature-drift');
-  const parentExists = await assertRealDirectoryIfPresent(repository, demoParent, '.litmo-demo');
+  const parentExists = await assertRealDirectoryIfPresent(repository, demoParent, '.evidrift-demo');
   const demoExists = parentExists
-    ? await assertRealDirectoryIfPresent(repository, demoRoot, '.litmo-demo/signature-drift')
+    ? await assertRealDirectoryIfPresent(repository, demoRoot, '.evidrift-demo/signature-drift')
     : false;
   if (demoExists) {
     await assertGeneratedWorkspace(demoRoot);
@@ -93,19 +93,19 @@ async function prepareWorkspace(repository: string): Promise<{
   }
 
   const appRoot = path.join(demoRoot, 'app');
-  const dependencyRoot = path.join(appRoot, 'node_modules', '@litmo', 'demo-contract');
+  const dependencyRoot = path.join(appRoot, 'node_modules', '@evidrift', 'demo-contract');
   const declaration = path.join(dependencyRoot, 'index.d.ts');
   await mkdir(path.join(appRoot, 'src'), { recursive: true });
   await mkdir(dependencyRoot, { recursive: true });
-  await writeFile(path.join(demoRoot, '.litmo-generated'), DEMO_MARKER);
+  await writeFile(path.join(demoRoot, '.evidrift-generated'), DEMO_MARKER);
   await writeFile(
     path.join(appRoot, 'package.json'),
     `${JSON.stringify(
       {
-        name: 'litmo-signature-drift-demo',
+        name: 'evidrift-signature-drift-demo',
         private: true,
         type: 'module',
-        dependencies: { '@litmo/demo-contract': '1.0.0' },
+        dependencies: { '@evidrift/demo-contract': '1.0.0' },
       },
       null,
       2,
@@ -114,7 +114,7 @@ async function prepareWorkspace(repository: string): Promise<{
   await writeFile(
     path.join(appRoot, 'src', 'index.ts'),
     [
-      "import { parseConfig } from '@litmo/demo-contract';",
+      "import { parseConfig } from '@evidrift/demo-contract';",
       'const options = { strict: true } as const;',
       "export const parsed = parseConfig('demo', options);",
       '',
@@ -124,7 +124,7 @@ async function prepareWorkspace(repository: string): Promise<{
     path.join(dependencyRoot, 'package.json'),
     `${JSON.stringify(
       {
-        name: '@litmo/demo-contract',
+        name: '@evidrift/demo-contract',
         version: '1.0.0',
         type: 'module',
         types: 'index.d.ts',
@@ -151,11 +151,11 @@ export async function runSignatureDriftDemo(
   const workspace = await prepareWorkspace(repository);
 
   report('Recording the dependency assumption…');
-  await initLitmo(workspace.demoRoot);
+  await initEvidrift(workspace.demoRoot);
   const receipt = await recordEvidence({
     repoRoot: workspace.demoRoot,
     projectRoot: workspace.appRoot,
-    packageName: '@litmo/demo-contract',
+    packageName: '@evidrift/demo-contract',
     symbol: 'parseConfig',
     parameter: 'options',
     claim: 'parseConfig accepts the optional options parameter used by this demo.',

@@ -1,23 +1,23 @@
 # Architecture
 
-Litmo v0.1 is a local TypeScript application with one deterministic adapter. The CLI and MCP server are thin entry points over the same core.
+Evidrift v0.1 is a local TypeScript application with one deterministic adapter. The CLI and MCP server are thin entry points over the same core.
 
 ```mermaid
 flowchart LR
-  Agent["Coding agent"] -->|"litmo_record inputs"| MCP["STDIO MCP server"]
-  Human["Developer / CI"] --> CLI["Litmo CLI"]
-  MCP --> Core["Shared Litmo core"]
+  Agent["Coding agent"] -->|"evidrift_record inputs"| MCP["STDIO MCP server"]
+  Human["Developer / CI"] --> CLI["Evidrift CLI"]
+  MCP --> Core["Shared Evidrift core"]
   CLI --> Core
   Core --> Adapter["typescript.symbol adapter"]
   Adapter --> Installed["Installed package.json + declaration file"]
-  Core --> Lock[".litmo/evidence.lock"]
-  Core --> Receipts[".litmo/receipts/<sha256>.json"]
+  Core --> Lock[".evidrift/evidence.lock"]
+  Core --> Receipts[".evidrift/receipts/<sha256>.json"]
 ```
 
 ## Components
 
 - `src/cli.ts`: argument parsing, output, and exit codes for `init`, `record`, `check`, `diff`, `explain`, and `demo`.
-- `src/mcp.ts`: one STDIO tool, `litmo_record`; it accepts locators, not raw receipts.
+- `src/mcp.ts`: one STDIO tool, `evidrift_record`; it accepts locators, not raw receipts.
 - `src/core.ts`: record and revalidation policy shared by CLI and MCP.
 - `src/demo.ts`: a self-contained local fixture that deliberately changes one dependency signature.
 - `src/output.ts` and `src/terminal.ts`: TTY-only presentation and stable machine-readable fallback output.
@@ -27,7 +27,7 @@ flowchart LR
 
 ## Record path
 
-1. Require an existing target repository and `.litmo/evidence.lock`.
+1. Require an existing target repository and `.evidrift/evidence.lock`.
 2. Constrain project and affected-code paths to the repository; affected code must resolve to a regular file.
 3. Resolve a registry-style npm dependency from the consuming `package.json`.
 4. Locate the package's `types`/`typings` entry without importing or executing package code.
@@ -47,7 +47,7 @@ Every check treats both the lock and receipt files as attacker-controlled.
 | Semantic support    | Exact supported TypeScript call signature                          | Mismatch blocks with exit `1`; no LLM judgment |
 | Runtime correctness | None                                                               | Explicitly not evaluated                       |
 
-An unavailable source is not silently called a match. It is reported as `WARNING unverifiable` and remains non-blocking in v0.1 because Litmo has not established a deterministic mismatch.
+An unavailable source is not silently called a match. It is reported as `WARNING unverifiable` and remains non-blocking in v0.1 because Evidrift has not established a deterministic mismatch.
 
 ## Security boundaries
 
@@ -60,7 +60,7 @@ An unavailable source is not silently called a match. It is reported as `WARNING
 - `package.json` and declaration reads are size-bounded.
 - Receipt schemas reject unknown fields, including `matched`, `verified`, or command-shaped additions.
 - No adapter invokes a shell, lifecycle script, package entry point, network request, or LLM.
-- Demo cleanup only replaces a real repository-local directory carrying Litmo's exact generated marker; symlinks, junctions, and unmarked directories are refused.
+- Demo cleanup only replaces a real repository-local directory carrying Evidrift's exact generated marker; symlinks, junctions, and unmarked directories are refused.
 - Atomic temporary-file replacement reduces partial writes. v0.1 does not provide cross-process locking.
 - Untrusted control characters are rejected in stored text and escaped in rendered errors, preventing ANSI control output and forged log lines.
 - Content hashes detect inconsistent or partially modified evidence; they do not authenticate an author. Someone who can rewrite both a Receipt and the lock can create a new internally valid Receipt, so Git review remains part of the trust model.

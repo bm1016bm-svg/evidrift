@@ -11,18 +11,18 @@ import { recordEvidence, resolveCliProjectRoot } from './core.js';
 import { assertSafeRelativePath } from './paths.js';
 import { renderRecord } from './output.js';
 import { escapeOutputText } from './text.js';
-import { LITMO_VERSION } from './types.js';
+import { EVIDRIFT_VERSION } from './types.js';
 
-export function createLitmoMcpServer(repoRoot = process.cwd()): McpServer {
+export function createEvidriftMcpServer(repoRoot = process.cwd()): McpServer {
   const absoluteRepoRoot = path.resolve(repoRoot);
-  const server = new McpServer({ name: 'litmo', version: LITMO_VERSION });
+  const server = new McpServer({ name: 'evidrift', version: EVIDRIFT_VERSION });
 
   server.registerTool(
-    'litmo_record',
+    'evidrift_record',
     {
       title: 'Record deterministic TypeScript evidence',
       description:
-        'Resolve an actually installed dependency and create a content-addressed Litmo receipt. The tool records evidence only; it never declares the receipt verified or the code correct.',
+        'Resolve an actually installed dependency and create a content-addressed Evidrift receipt. The tool records evidence only; it never declares the receipt verified or the code correct.',
       inputSchema: z
         .object({
           projectRoot: z
@@ -72,7 +72,7 @@ export function createLitmoMcpServer(repoRoot = process.cwd()): McpServer {
           content: [
             {
               type: 'text' as const,
-              text: `Litmo refused to record evidence: ${escapeOutputText(error instanceof Error ? error.message : String(error))}`,
+              text: `Evidrift refused to record evidence: ${escapeOutputText(error instanceof Error ? error.message : String(error))}`,
             },
           ],
           isError: true,
@@ -85,7 +85,7 @@ export function createLitmoMcpServer(repoRoot = process.cwd()): McpServer {
 }
 
 export async function runMcpServer(): Promise<void> {
-  const server = createLitmoMcpServer();
+  const server = createEvidriftMcpServer();
   await server.connect(new StdioServerTransport());
 }
 
@@ -95,7 +95,7 @@ if (
 ) {
   runMcpServer().catch((error: unknown) => {
     console.error(
-      `Litmo MCP server failed: ${escapeOutputText(error instanceof Error ? error.message : String(error))}`,
+      `Evidrift MCP server failed: ${escapeOutputText(error instanceof Error ? error.message : String(error))}`,
     );
     process.exitCode = 1;
   });

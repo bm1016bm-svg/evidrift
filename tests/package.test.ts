@@ -10,11 +10,11 @@ test('npm tarball contains the executable surface and excludes source, tests, an
     private?: boolean;
     bin?: Record<string, string>;
   };
-  assert.notEqual(manifest.private, true, 'A private package cannot back `npx litmo`.');
-  assert.equal(manifest.bin?.litmo, 'dist/src/cli.js');
-  assert.equal(manifest.bin?.['litmo-mcp'], 'dist/src/mcp.js');
+  assert.notEqual(manifest.private, true, 'A private package cannot back `npx evidrift`.');
+  assert.equal(manifest.bin?.evidrift, 'dist/src/cli.js');
+  assert.equal(manifest.bin?.['evidrift-mcp'], 'dist/src/mcp.js');
 
-  const cache = await mkdtemp(path.join(tmpdir(), 'litmo-pack-cache-'));
+  const cache = await mkdtemp(path.join(tmpdir(), 'evidrift-pack-cache-'));
   t.after(async () => rm(cache, { recursive: true, force: true }));
 
   const npmArguments = ['pack', '--json', '--dry-run', '--ignore-scripts', '--cache', cache];
@@ -52,7 +52,7 @@ test('npm tarball contains the executable surface and excludes source, tests, an
 
   for (const forbidden of [
     '.github/',
-    '.litmo/',
+    '.evidrift/',
     'examples/',
     'src/',
     'tests/',

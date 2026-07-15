@@ -1,30 +1,30 @@
 # MCP setup
 
-Build Litmo and initialize the target repository first:
+Build Evidrift and initialize the target repository first:
 
 ```bash
 npm ci
 npm run build
-node /absolute/path/to/litmo/dist/src/cli.js init --root /absolute/path/to/your/repo
+node /absolute/path/to/evidrift/dist/src/cli.js init --root /absolute/path/to/your/repo
 ```
 
-Use absolute paths in agent configuration. The server uses its working directory as the repository root and exposes only `litmo_record`.
+Use absolute paths in agent configuration. The server uses its working directory as the repository root and exposes only `evidrift_record`.
 
 ## Codex
 
 Official Codex configuration supports `command`, `args`, and `cwd` for STDIO servers. Add this to trusted project `.codex/config.toml` or user `~/.codex/config.toml`:
 
 ```toml
-[mcp_servers.litmo]
+[mcp_servers.evidrift]
 command = "node"
-args = ["/absolute/path/to/litmo/dist/src/mcp.js"]
+args = ["/absolute/path/to/evidrift/dist/src/mcp.js"]
 cwd = "/absolute/path/to/your/repo"
 ```
 
 Equivalent CLI command, run from the target repository:
 
 ```bash
-codex mcp add litmo -- node /absolute/path/to/litmo/dist/src/mcp.js
+codex mcp add evidrift -- node /absolute/path/to/evidrift/dist/src/mcp.js
 ```
 
 Source: [OpenAI Codex configuration reference](https://developers.openai.com/codex/config-reference/).
@@ -34,7 +34,7 @@ Source: [OpenAI Codex configuration reference](https://developers.openai.com/cod
 Register a project-scoped local STDIO server:
 
 ```bash
-claude mcp add --scope project litmo -- node /absolute/path/to/litmo/dist/src/mcp.js
+claude mcp add --scope project evidrift -- node /absolute/path/to/evidrift/dist/src/mcp.js
 ```
 
 The generated `.mcp.json` has this shape:
@@ -42,9 +42,9 @@ The generated `.mcp.json` has this shape:
 ```json
 {
   "mcpServers": {
-    "litmo": {
+    "evidrift": {
       "command": "node",
-      "args": ["/absolute/path/to/litmo/dist/src/mcp.js"],
+      "args": ["/absolute/path/to/evidrift/dist/src/mcp.js"],
       "env": {}
     }
   }
@@ -60,9 +60,9 @@ Create `.cursor/mcp.json` in the target repository:
 ```json
 {
   "mcpServers": {
-    "litmo": {
+    "evidrift": {
       "command": "node",
-      "args": ["/absolute/path/to/litmo/dist/src/mcp.js"]
+      "args": ["/absolute/path/to/evidrift/dist/src/mcp.js"]
     }
   }
 }
@@ -72,7 +72,7 @@ Open the target repository as the Cursor workspace. Source: [Cursor MCP document
 
 ## Tool contract
 
-`litmo_record` accepts:
+`evidrift_record` accepts:
 
 - `projectRoot`: repository-relative consuming project, default `.`.
 - `packageName`: installed registry-style npm package name.

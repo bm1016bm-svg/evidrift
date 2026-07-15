@@ -52,7 +52,7 @@ function recordArguments(
     '--project',
     'app',
     '--package',
-    overrides.package ?? '@litmo/demo-contract',
+    overrides.package ?? '@evidrift/demo-contract',
     '--symbol',
     overrides.symbol ?? 'parseConfig',
     '--parameter',
@@ -71,7 +71,7 @@ function receiptIdFrom(output: string): string {
 }
 
 function receiptPath(root: string, id: string): string {
-  return path.join(root, '.litmo', 'receipts', `${id.slice('sha256:'.length)}.json`);
+  return path.join(root, '.evidrift', 'receipts', `${id.slice('sha256:'.length)}.json`);
 }
 
 function fakeReceiptIds(count: number): string[] {
@@ -173,7 +173,7 @@ test('UAT: control characters are rejected on record and in a rehashed Receipt',
     `${canonicalStringify({ id: forgedId, ...payload })}\n`,
   );
   await writeFile(
-    path.join(fixture.root, '.litmo', 'evidence.lock'),
+    path.join(fixture.root, '.evidrift', 'evidence.lock'),
     `${canonicalStringify({ schemaVersion: 1, receipts: [forgedId] })}\n`,
   );
 
@@ -199,7 +199,7 @@ test('UAT: forged matched or verified fields are rejected as untrusted input', a
 test('UAT: malformed, missing, and inconsistent evidence produce classified reports', async (t) => {
   const { fixture, id, file } = await initializeAndRecord(t);
   const originalReceipt = await readFile(file, 'utf8');
-  const lockPath = path.join(fixture.root, '.litmo', 'evidence.lock');
+  const lockPath = path.join(fixture.root, '.evidrift', 'evidence.lock');
   const originalLock = await readFile(lockPath, 'utf8');
 
   await writeFile(file, '{broken json\n');
@@ -230,8 +230,8 @@ test('UAT: malformed, missing, and inconsistent evidence produce classified repo
 test('UAT: Receipt-count limits fail before reads and prevent orphan files', async (t) => {
   const fixture = await fixtureFor(t);
   runCli(['init', '--root', fixture.root], 0);
-  const lockPath = path.join(fixture.root, '.litmo', 'evidence.lock');
-  const receiptsPath = path.join(fixture.root, '.litmo', 'receipts');
+  const lockPath = path.join(fixture.root, '.evidrift', 'evidence.lock');
+  const receiptsPath = path.join(fixture.root, '.evidrift', 'receipts');
 
   await writeFile(
     lockPath,
@@ -289,7 +289,10 @@ test('UAT: an unavailable or malformed source is a clear non-blocking warning', 
   await rm(unavailable.fixture.dependency, { recursive: true, force: true });
   const missingResult = runCli(['check', '--root', unavailable.fixture.root], 0).stdout;
   assert.match(missingResult, /WARNING unverifiable/);
-  assert.match(missingResult, /Installed dependency @litmo\/demo-contract could not be resolved/);
+  assert.match(
+    missingResult,
+    /Installed dependency @evidrift\/demo-contract could not be resolved/,
+  );
   assert.match(missingResult, /Action: Restore the dependency source and rerun check/);
   assert.match(missingResult, /Summary: 0 pass, 1 warning, 0 fail/);
 
@@ -305,7 +308,7 @@ test('UAT: an unavailable or malformed source is a clear non-blocking warning', 
 
 test('UAT: transitive declarations cannot escape the repository', async (t) => {
   const { fixture } = await initializeAndRecord(t);
-  const outside = await mkdtemp(path.join(tmpdir(), 'litmo-outside-declaration-'));
+  const outside = await mkdtemp(path.join(tmpdir(), 'evidrift-outside-declaration-'));
   t.after(async () => rm(outside, { recursive: true, force: true }));
   const outsideDeclaration = path.join(outside, 'external.d.ts');
   await writeFile(outsideDeclaration, 'export interface ExternalOptions { unsafe: true; }\n');
@@ -438,10 +441,10 @@ test('UAT: boss-fight overloads with a cross-file type alias fail clearly withou
   );
 
   const lock = JSON.parse(
-    await readFile(path.join(fixture.root, '.litmo', 'evidence.lock'), 'utf8'),
+    await readFile(path.join(fixture.root, '.evidrift', 'evidence.lock'), 'utf8'),
   ) as EvidenceLock;
   assert.deepEqual(lock.receipts, []);
-  assert.deepEqual(await readdir(path.join(fixture.root, '.litmo', 'receipts')), []);
+  assert.deepEqual(await readdir(path.join(fixture.root, '.evidrift', 'receipts')), []);
 });
 
 test('UAT: coordinated rehashing is internally valid and remains a documented Git-review boundary', async (t) => {
@@ -457,7 +460,7 @@ test('UAT: coordinated rehashing is internally valid and remains a documented Gi
   const replacement: Receipt = { id: replacementId, ...payload };
   await writeFile(receiptPath(fixture.root, replacementId), `${canonicalStringify(replacement)}\n`);
   await writeFile(
-    path.join(fixture.root, '.litmo', 'evidence.lock'),
+    path.join(fixture.root, '.evidrift', 'evidence.lock'),
     `${canonicalStringify({ schemaVersion: 1, receipts: [replacementId] })}\n`,
   );
 
@@ -466,14 +469,14 @@ test('UAT: coordinated rehashing is internally valid and remains a documented Gi
   assert.match(result, /Claim: A replacement claim with a newly calculated content address/);
 });
 
-test('UAT: litmo demo creates a self-contained PASS-to-FAIL signature drift experience', async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), 'litmo-demo-command-'));
+test('UAT: evidrift demo creates a self-contained PASS-to-FAIL signature drift experience', async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), 'evidrift-demo-command-'));
   t.after(async () => rm(root, { recursive: true, force: true }));
 
   const result = runCli(['demo', '--root', root], 0);
   assert.equal(result.stderr, '');
   for (const expected of [
-    'Litmo signature-drift demo',
+    'Evidrift signature-drift demo',
     '1/3 Evidence recorded',
     'RECORDED sha256:',
     '2/3 Baseline contract',
@@ -482,24 +485,24 @@ test('UAT: litmo demo creates a self-contained PASS-to-FAIL signature drift expe
     'FAIL contract_mismatch',
     'Expected signature: parseConfig(input:string,options?:ParseOptions):ParseResult',
     'Current signature: parseConfig(input:string,options:ParseOptions):ParseResult',
-    'Litmo caught the dependency contract drift before merge.',
+    'Evidrift caught the dependency contract drift before merge.',
   ]) {
     assert.ok(result.stdout.includes(expected), `Missing ${expected} in:\n${result.stdout}`);
   }
   assert.doesNotMatch(result.stdout, /\u001b/u);
-  await access(path.join(root, '.litmo-demo', 'signature-drift', '.litmo-generated'));
+  await access(path.join(root, '.evidrift-demo', 'signature-drift', '.evidrift-generated'));
   const lock = JSON.parse(
     await readFile(
-      path.join(root, '.litmo-demo', 'signature-drift', '.litmo', 'evidence.lock'),
+      path.join(root, '.evidrift-demo', 'signature-drift', '.evidrift', 'evidence.lock'),
       'utf8',
     ),
   ) as EvidenceLock;
   assert.equal(lock.receipts.length, 1);
 });
 
-test('UAT: litmo demo refuses to replace an unmarked existing directory', async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), 'litmo-demo-unmarked-'));
-  const existing = path.join(root, '.litmo-demo', 'signature-drift');
+test('UAT: evidrift demo refuses to replace an unmarked existing directory', async (t) => {
+  const root = await mkdtemp(path.join(tmpdir(), 'evidrift-demo-unmarked-'));
+  const existing = path.join(root, '.evidrift-demo', 'signature-drift');
   const sentinel = path.join(existing, 'sentinel.txt');
   await mkdir(existing, { recursive: true });
   await writeFile(sentinel, 'user-owned data must survive\n');
@@ -509,16 +512,16 @@ test('UAT: litmo demo refuses to replace an unmarked existing directory', async 
   assert.equal(result.stdout, '');
   assert.match(
     result.stderr,
-    /^ERROR: Existing \.litmo-demo\/signature-drift is not marked as Litmo-generated; refusing to delete it\./u,
+    /^ERROR: Existing \.evidrift-demo\/signature-drift is not marked as Evidrift-generated; refusing to delete it\./u,
   );
   assert.doesNotMatch(result.stderr, /\n\s+at /u);
   await access(sentinel);
 });
 
 test('UAT: demo cleanup refuses a symlink or junction without deleting outside data', async (t) => {
-  const root = await mkdtemp(path.join(tmpdir(), 'litmo-demo-root-'));
-  const outside = await mkdtemp(path.join(tmpdir(), 'litmo-demo-outside-'));
-  const demoParent = path.join(root, '.litmo-demo');
+  const root = await mkdtemp(path.join(tmpdir(), 'evidrift-demo-root-'));
+  const outside = await mkdtemp(path.join(tmpdir(), 'evidrift-demo-outside-'));
+  const demoParent = path.join(root, '.evidrift-demo');
   const outsideDemo = path.join(outside, 'signature-drift');
   const sentinel = path.join(outsideDemo, 'sentinel.txt');
   await mkdir(outsideDemo);
@@ -552,7 +555,7 @@ test('UAT: demo cleanup refuses a symlink or junction without deleting outside d
   const result = spawnSync(process.execPath, [cli, 'demo', '--root', root], { encoding: 'utf8' });
   assert.equal(result.status, 2, `${result.stdout}\n${result.stderr}`);
   assert.equal(result.stdout, '');
-  assert.match(result.stderr, /^ERROR: \.litmo-demo must be a real directory/);
+  assert.match(result.stderr, /^ERROR: \.evidrift-demo must be a real directory/);
   assert.doesNotMatch(result.stderr, /\n\s+at /u);
   await access(sentinel);
 });

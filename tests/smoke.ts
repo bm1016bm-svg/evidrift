@@ -23,7 +23,7 @@ const recorded = run(
     '--project',
     'app',
     '--package',
-    '@litmo/demo-contract',
+    '@evidrift/demo-contract',
     '--symbol',
     'parseConfig',
     '--parameter',

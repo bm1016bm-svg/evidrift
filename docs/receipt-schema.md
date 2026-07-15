@@ -1,6 +1,6 @@
 # Receipt schema v1
 
-Litmo stores a small lock file and immutable, content-addressed JSON receipts.
+Evidrift stores a small lock file and immutable, content-addressed JSON receipts.
 
 ## `evidence.lock`
 
@@ -11,7 +11,7 @@ Litmo stores a small lock file and immutable, content-addressed JSON receipts.
 }
 ```
 
-Only full SHA-256 IDs are accepted. The corresponding path is derived as `.litmo/receipts/<64 hex characters>.json`; a lock entry never supplies a path.
+Only full SHA-256 IDs are accepted. The corresponding path is derived as `.evidrift/receipts/<64 hex characters>.json`; a lock entry never supplies a path.
 
 ## Receipt
 
@@ -28,7 +28,7 @@ The repository's committed example is:
     "adapter": "typescript.symbol",
     "expectedSignature": "parseConfig(input:string,options?:ParseOptions):ParseResult",
     "package": {
-      "name": "@litmo/demo-contract",
+      "name": "@evidrift/demo-contract",
       "resolvedPath": "examples/signature-drift/fixture-package/index.d.ts",
       "version": "1.0.0"
     },
@@ -45,7 +45,7 @@ The repository's committed example is:
 ## Hash construction
 
 1. Remove the top-level `id` field.
-2. Serialize the remaining payload with Litmo canonical JSON: object keys sorted recursively, array order preserved, JSON primitives only, and non-finite numbers rejected.
+2. Serialize the remaining payload with Evidrift canonical JSON: object keys sorted recursively, array order preserved, JSON primitives only, and non-finite numbers rejected.
 3. Hash the UTF-8 bytes with SHA-256.
 4. Prefix the lowercase hexadecimal digest with `sha256:`.
 
@@ -59,7 +59,7 @@ Content addressing checks internal consistency, not authorship. Replacing both a
 
 ## Meaning of fields
 
-- `claim`: human explanation of why the contract matters. Litmo does not semantically prove it.
+- `claim`: human explanation of why the contract matters. Evidrift does not semantically prove it.
 - `affectedCode`: review location; it is not executed.
 - `projectRoot`: consuming package directory, relative to the repository.
 - `package`: dependency identity captured during record.
