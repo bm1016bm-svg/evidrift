@@ -1,7 +1,28 @@
 {
   "name": "litmo",
   "version": "0.1.0",
-  "description": "Version control for the why behind your code.",
+  "description": "Evidence lockfile for AI-generated code. Revalidate TypeScript dependency contracts in CI via CLI or MCP.",
+  "keywords": [
+    "ai",
+    "ai-coding-agents",
+    "ai-generated-code",
+    "ci",
+    "cli",
+    "dependency-contracts",
+    "developer-tools",
+    "mcp",
+    "model-context-protocol",
+    "provenance",
+    "typescript"
+  ],
+  "homepage": "https://github.com/bm1016bm-svg/litmo#readme",
+  "bugs": {
+    "url": "https://github.com/bm1016bm-svg/litmo/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bm1016bm-svg/litmo.git"
+  },
   "license": "MPL-2.0",
   "type": "module",
   "bin": {
@@ -19,6 +40,10 @@
   "engines": {
     "node": ">=22.0.0"
   },
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "packageManager": "npm@11.6.2",
   "workspaces": [
     "examples/signature-drift/app",
@@ -32,6 +57,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint src tests --max-warnings 0",
     "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "prepublishOnly": "npm run verify",
     "prepack": "npm run build",
     "smoke": "node dist/tests/smoke.js",
     "test": "npm run build && node --test \"dist/tests/**/*.test.js\" && npm run smoke",

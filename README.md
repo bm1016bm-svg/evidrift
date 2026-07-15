@@ -1,12 +1,12 @@
-# Litmo
+# Litmo — evidence lockfile for AI coding agents
+
+[![CI](https://github.com/bm1016bm-svg/litmo/actions/workflows/ci.yml/badge.svg)](https://github.com/bm1016bm-svg/litmo/actions/workflows/ci.yml)
+
+> **The lockfile for AI assumptions—version control for the “why” behind your code.**
+
+Litmo records deterministic TypeScript dependency contracts behind AI-generated code, then revalidates them locally or in CI. Coding agents use its STDIO MCP server; humans and CI use the same local-first CLI. No cloud account. No LLM judge. No package code execution.
 
 ![Litmo — AI dependency lockfile](docs/assets/litmo-hero.png)
-
-> **Litmo: The lockfile for AI assumptions.**
-
-AI can write code against a dependency contract that changes tomorrow. Litmo records that contract in the repository, then checks the installed dependency again before merge.
-
-It is a local TypeScript CLI and STDIO MCP server. No cloud account. No LLM judge. No package code execution.
 
 ## Installation
 
@@ -20,7 +20,7 @@ That command runs in the current repository; no global install or Litmo account 
 
 On a cold npm cache, npm may ask once before downloading an uninstalled package. That prompt belongs to `npx`, not Litmo. For fully non-interactive use, run `npx --yes litmo init`.
 
-**Current status:** `litmo` returned `E404` from the official npm registry on 2026-07-14, so the bare command is not live yet. Publication remains intentionally blocked until the public GitHub repository and CI exist. From this checkout, use:
+**Current status:** the public repository and CI are live, but the npm package is not published. The unscoped `litmo` name returned `E404` from the official npm registry on 2026-07-15. Release remains blocked on final package-name clearance and npm authentication. From this checkout, use:
 
 ```bash
 npm ci
