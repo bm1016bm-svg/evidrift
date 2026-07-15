@@ -1,6 +1,7 @@
 # Evidrift — evidence lockfile for AI coding agents
 
 [![CI](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml/badge.svg)](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml)
+[![npm version](https://img.shields.io/npm/v/evidrift.svg)](https://www.npmjs.com/package/evidrift)
 
 > **Code compiles. Reality drifts. Evidrift is the lockfile for AI assumptions.**
 
@@ -12,40 +13,27 @@ Local-first CLI. STDIO MCP server. No account, no cloud backend, no LLM judge, a
 
 ## Installation
 
-The package is ready for zero-install use after the first npm release:
+Requires Node.js 22 or newer. Run Evidrift directly from npm:
 
 ```bash
+npx --yes evidrift init
+```
+
+That command initializes the current repository. No global install, Evidrift account, API key, or cloud backend is required.
+
+To pin Evidrift for a team or CI workflow:
+
+```bash
+npm install --save-dev evidrift
 npx evidrift init
 ```
 
-That command runs in the current repository; no global install or Evidrift account is required. Node.js 22 or newer is still required because `npx` ships with Node/npm.
-
-On a cold npm cache, npm may ask once before downloading an uninstalled package. That prompt belongs to `npx`, not Evidrift. For fully non-interactive use, run `npx --yes evidrift init`.
-
-**Current status:** the public repository and CI are live, but the npm package is not published. The unscoped `evidrift` name returned `E404` from the official npm registry on 2026-07-15. Release remains intentionally pending npm authentication. From this checkout, use:
-
-```bash
-npm ci
-npm run build
-npm link
-evidrift --help
-```
-
-The packed artifact has been tested through real `npx --package <local-tarball> evidrift init`; the remaining step is registry publication, not CLI packaging.
-
 ## Quick Start
 
-After npm publication, the one-command demo is:
+Run the self-contained drift demo:
 
 ```bash
-npx evidrift demo
-```
-
-From this checkout, run the same self-contained demo with:
-
-```bash
-npm ci
-npm run demo
+npx --yes evidrift demo
 ```
 
 The demo creates an ignored `.evidrift-demo/signature-drift` workspace, records the optional `options` parameter on `parseConfig`, checks it successfully, changes the fixture so `options` is required, then shows the deterministic failure. It executes no downloaded package code.

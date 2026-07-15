@@ -21,13 +21,14 @@ Local checkpoint on 2026-07-15 after the Evidrift rename:
 - Isolated UAT result: 16 tests passed, 0 failed, 0 skipped; smoke passed after the same run.
 - Smoke result: baseline `PASS`, changed signature `FAIL`.
 - Packed-install result: a fresh temporary consumer installed the tarball, ran the installed `evidrift 0.1.0 --help`, and contained the `evidrift-mcp` executable.
-- npx result: a fresh temporary consumer ran `evidrift init` and the PASS-to-FAIL `evidrift demo` through `npx --yes --package <local-tarball>`.
-- Registry result: the official npm registry returned `E404` for `evidrift` on 2026-07-15; bare `npx evidrift` cannot work until publication.
-- Publish result: no package was published. The network publication dry-run remains an authenticated release checkpoint; local `prepublishOnly`, packing, clean installation, and local-tarball `npx` validation passed.
+- Local-tarball npx result: a fresh temporary consumer ran `evidrift init` and the PASS-to-FAIL `evidrift demo` through `npx --yes --package <local-tarball>`.
+- Registry result: the official npm registry returned `evidrift@0.1.0` with the `latest` tag, SHA-1 `a215f50a8f7cb29c23122a2db6d9bdfcd24b74e9`, and the expected SHA-512 integrity on 2026-07-15.
+- Publish result: the public npm package contains 55 files, a 40,984-byte tarball, and 176,248 unpacked bytes. The authenticated dry-run and final registry artifact reported the same SHA-1.
+- Public npx result: a clean consumer outside this repository ran `npx --yes evidrift init` and `npx --yes evidrift demo` from a fresh cache; initialization created the lock and the demo reproduced deterministic PASS-to-FAIL drift.
 - Dependency advisory result: `npm audit --registry=https://registry.npmjs.org` reported 0 known vulnerabilities at the checkpoint time.
 - GitHub Actions runs the same release gate on Node.js 22 and 24; the README CI badge reports the current `main` result.
 
-The counts above come from the local `npm run verify` and `npm run uat` output. The advisory count comes from npm's official registry response; it is not proof that the code has no vulnerability. These are not coverage percentages and make no claim about production usage.
+The test counts above come from local `npm run verify` and `npm run uat` output. Package sizes and hashes come from the npm publish output and a separate official-registry readback. The advisory count comes from npm's official registry response; it is not proof that the code has no vulnerability. These are not coverage percentages and make no claim about production usage.
 
 ## Acceptance matrix
 
@@ -73,8 +74,9 @@ The counts above come from the local `npm run verify` and `npm run uat` output. 
 | UAT-38 | Run check in a TTY, pipe, CI, or `NO_COLOR` environment    | Human TTY gets colored icons; machine-oriented output remains stable and ANSI-free  | terminal rendering tests           |
 | UAT-39 | Run the self-contained `evidrift demo` command             | Local evidence passes, signature is changed, mismatch is shown, command exits `0`   | demo-command UAT test              |
 | UAT-40 | Execute the packed CLI through real local-tarball `npx`    | `init` creates storage and `demo` reproduces PASS-to-FAIL without a global install  | npx packed-install checkpoint      |
-| UAT-41 | Run the authenticated npm publication checkpoint           | `prepublishOnly` passes before the non-private package is submitted                 | pending authenticated release step |
+| UAT-41 | Run the authenticated npm publication checkpoint           | `prepublishOnly` passes and the public registry returns the exact artifact hash     | 2026-07-15 release checkpoint      |
 | UAT-42 | Place user-owned data at the demo workspace path           | Demo refuses replacement without its exact marker and preserves the data            | unmarked-demo UAT test             |
+| UAT-43 | Run bare `npx evidrift` from a clean external consumer     | Public `init` creates storage and `demo` reproduces PASS-to-FAIL drift              | 2026-07-15 public-npx checkpoint   |
 
 ## Tamper behavior
 
