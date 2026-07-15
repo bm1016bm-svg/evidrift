@@ -2,9 +2,13 @@
 
 [![CI](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml/badge.svg)](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml)
 
-> **The lockfile for AI assumptions—version control for the “why” behind your code.**
+> **Code compiles. Reality drifts. Evidrift is the lockfile for AI assumptions.**
 
-Evidrift records deterministic TypeScript dependency contracts behind AI-generated code, then revalidates them locally or in CI. Coding agents use its STDIO MCP server; humans and CI use the same local-first CLI. No cloud account. No LLM judge. No package code execution.
+Coding agents can write against a dependency contract that changes tomorrow. Evidrift records the exact TypeScript symbol contract as a content-addressed Receipt, then makes CI recompute it before merge.
+
+Local-first CLI. STDIO MCP server. No account, no cloud backend, no LLM judge, and no package code execution.
+
+![Evidrift — AI dependency lockfile](docs/assets/evidrift-hero.png)
 
 ## Installation
 
