@@ -11,6 +11,7 @@ import type { ResolvedTypeScriptSymbol } from '../types.js';
 const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/;
 const IDENTIFIER = /^[A-Za-z_$][A-Za-z0-9_$]*$/;
 const MAX_PACKAGE_JSON_BYTES = 1024 * 1024;
+const MAX_TSCONFIG_BYTES = 1024 * 1024;
 const MAX_DECLARATION_BYTES = 2 * 1024 * 1024;
 const MAX_DECLARATION_FILES = 256;
 const MAX_TOTAL_DECLARATION_BYTES = 16 * 1024 * 1024;
@@ -164,8 +165,7 @@ interface AllowedCompilerFile {
 function createBoundedCompilerHost(
   repoRootInput: string,
   options: ts.CompilerOptions,
-  rootFile: string,
-  rootText: string,
+  roots: readonly { path: string; text: string }[],
 ): {
   host: ts.CompilerHost;
   auditTransitiveSources: () => void;
@@ -174,11 +174,14 @@ function createBoundedCompilerHost(
   const repoRoot = realpathSync(repoRootInput);
   const compilerLibraryRoot = realpathSync(path.dirname(ts.getDefaultLibFilePath(options)));
   const baseHost = ts.createCompilerHost(options, true);
-  const sourceCache = new Map<string, string>([[rootFile, rootText]]);
-  const untrustedSourceBytes = new Map<string, number>([
-    [rootFile, Buffer.byteLength(rootText, 'utf8')],
-  ]);
-  let totalUntrustedBytes = untrustedSourceBytes.get(rootFile) ?? 0;
+  const sourceCache = new Map(roots.map((root) => [root.path, root.text]));
+  const untrustedSourceBytes = new Map(
+    roots.map((root) => [root.path, Buffer.byteLength(root.text, 'utf8')]),
+  );
+  let totalUntrustedBytes = [...untrustedSourceBytes.values()].reduce(
+    (total, bytes) => total + bytes,
+    0,
+  );
   let escapedReadObserved = false;
 
   function allowedFile(fileName: string, recordEscape: boolean): AllowedCompilerFile | undefined {
@@ -302,7 +305,7 @@ function createBoundedCompilerHost(
   };
 
   function auditTransitiveSources(): void {
-    const pending = [rootFile];
+    const pending = roots.map((root) => root.path);
     const visited = new Set<string>();
 
     const enqueue = (fileName: string, description: string): void => {
@@ -412,6 +415,7 @@ export interface ResolveTypeScriptSymbolInput {
   symbol: string;
   parameter?: string;
   overload?: number;
+  callSite?: { path: string; line: number };
   expectedSignatureHash?: string;
 }
 
@@ -419,6 +423,30 @@ interface RenderedCallSignature {
   signature: string;
   signatureHash: string;
   parameterPresent: boolean;
+}
+
+function renderCallSignature(
+  checker: ts.TypeChecker,
+  signature: ts.Signature,
+  declaration: ts.Declaration,
+  symbol: string,
+  parameter?: string,
+): RenderedCallSignature {
+  const value = normalizeSignature(
+    `${symbol}${checker.signatureToString(
+      signature,
+      declaration,
+      ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope,
+      ts.SignatureKind.Call,
+    )}`,
+  );
+  return {
+    signature: value,
+    signatureHash: `sha256:${sha256(value)}`,
+    parameterPresent:
+      parameter === undefined ||
+      signature.getParameters().some((candidate) => candidate.name === parameter),
+  };
 }
 
 function signaturePreview(value: string): string {
@@ -441,6 +469,215 @@ function overloadSelectionMessage(
   signatures: readonly RenderedCallSignature[],
 ): string {
   return `Symbol ${symbol} has ${signatures.length} overloads. Rerun with --overload <1-${signatures.length}>. Candidates: ${renderOverloadSet(signatures)}`;
+}
+
+function defaultCompilerOptions(): ts.CompilerOptions {
+  return {
+    module: ts.ModuleKind.NodeNext,
+    moduleResolution: ts.ModuleResolutionKind.NodeNext,
+    target: ts.ScriptTarget.ES2022,
+    noEmit: true,
+    skipLibCheck: true,
+    strict: true,
+    types: [],
+  };
+}
+
+function callSiteCompilerOptions(repoRoot: string, projectRoot: string): ts.CompilerOptions {
+  const configPath = ts.findConfigFile(projectRoot, (candidate) => {
+    try {
+      const resolved = realpathSync(candidate);
+      return isInside(repoRoot, resolved) && lstatSync(resolved).isFile();
+    } catch {
+      return false;
+    }
+  });
+  if (configPath === undefined) {
+    return defaultCompilerOptions();
+  }
+
+  const readConfig = (candidate: string): string | undefined => {
+    try {
+      const resolved = realpathSync(candidate);
+      const metadata = lstatSync(resolved);
+      if (
+        !isInside(repoRoot, resolved) ||
+        !metadata.isFile() ||
+        metadata.size > MAX_TSCONFIG_BYTES
+      ) {
+        return undefined;
+      }
+      return readFileSync(resolved, 'utf8');
+    } catch {
+      return undefined;
+    }
+  };
+  const config = ts.readConfigFile(configPath, readConfig);
+  if (config.error !== undefined) {
+    throw new AdapterError(`Invalid tsconfig: ${diagnosticText(config.error)}.`);
+  }
+  const parsed = ts.parseJsonConfigFileContent(
+    config.config,
+    {
+      useCaseSensitiveFileNames: ts.sys.useCaseSensitiveFileNames,
+      fileExists: (candidate) => readConfig(candidate) !== undefined,
+      readFile: readConfig,
+      readDirectory: () => [],
+    },
+    path.dirname(configPath),
+    { noEmit: true },
+    configPath,
+  );
+  const error = parsed.errors.find(
+    (diagnostic) =>
+      diagnostic.category === ts.DiagnosticCategory.Error && diagnostic.code !== 18003,
+  );
+  if (error !== undefined) {
+    throw new AdapterError(`Invalid tsconfig: ${diagnosticText(error)}.`);
+  }
+  return { ...parsed.options, noEmit: true, skipLibCheck: true };
+}
+
+function callTargetSymbol(checker: ts.TypeChecker, call: ts.CallExpression): ts.Symbol | undefined {
+  const expression = call.expression;
+  const location = ts.isPropertyAccessExpression(expression) ? expression.name : expression;
+  const symbol = checker.getSymbolAtLocation(location);
+  return symbol !== undefined && symbol.flags & ts.SymbolFlags.Alias
+    ? checker.getAliasedSymbol(symbol)
+    : symbol;
+}
+
+function sameDeclaration(left: ts.Signature, right: ts.Signature): boolean {
+  const leftDeclaration = left.getDeclaration();
+  const rightDeclaration = right.getDeclaration();
+  return (
+    leftDeclaration === rightDeclaration ||
+    (leftDeclaration.pos === rightDeclaration.pos &&
+      leftDeclaration.end === rightDeclaration.end &&
+      leftDeclaration.getSourceFile().fileName === rightDeclaration.getSourceFile().fileName)
+  );
+}
+
+async function selectCallSiteSignature(input: {
+  repoRoot: string;
+  projectRoot: string;
+  declarationPath: string;
+  declarationText: string;
+  symbol: string;
+  parameter?: string;
+  callSite: { path: string; line: number };
+}): Promise<RenderedCallSignature> {
+  const callSiteText = await readLimited(input.callSite.path, MAX_DECLARATION_BYTES);
+  const compilerOptions = callSiteCompilerOptions(input.repoRoot, input.projectRoot);
+  const roots = [
+    { path: input.declarationPath, text: input.declarationText },
+    { path: input.callSite.path, text: callSiteText },
+  ];
+  const boundedHost = createBoundedCompilerHost(input.repoRoot, compilerOptions, roots);
+  boundedHost.auditTransitiveSources();
+  const program = ts.createProgram({
+    rootNames: roots.map((root) => root.path),
+    options: compilerOptions,
+    host: boundedHost.host,
+  });
+  const declarationFile = program.getSourceFile(input.declarationPath);
+  const callSiteFile = program.getSourceFile(input.callSite.path);
+  if (declarationFile === undefined || callSiteFile === undefined) {
+    throw new AdapterError('TypeScript could not load the declaration and affected code together.');
+  }
+  const syntaxError = program
+    .getSyntacticDiagnostics(callSiteFile)
+    .find((diagnostic) => diagnostic.category === ts.DiagnosticCategory.Error);
+  if (syntaxError !== undefined) {
+    throw new AdapterError(`Affected code has invalid TypeScript: ${diagnosticText(syntaxError)}.`);
+  }
+
+  const checker = program.getTypeChecker();
+  const moduleSymbol = checker.getSymbolAtLocation(declarationFile);
+  const exported =
+    moduleSymbol === undefined
+      ? undefined
+      : checker.getExportsOfModule(moduleSymbol).find((item) => item.name === input.symbol);
+  if (exported === undefined) {
+    throw new AdapterError(
+      `Exported symbol ${input.symbol} was not found while resolving the call site.`,
+    );
+  }
+  const target =
+    exported.flags & ts.SymbolFlags.Alias ? checker.getAliasedSymbol(exported) : exported;
+  const declaration = target.valueDeclaration ?? target.declarations?.[0];
+  if (declaration === undefined) {
+    throw new AdapterError(`Symbol ${input.symbol} has no declaration.`);
+  }
+  const signatures = checker.getSignaturesOfType(
+    checker.getTypeOfSymbolAtLocation(target, declaration),
+    ts.SignatureKind.Call,
+  );
+
+  const calls: ts.CallExpression[] = [];
+  const visit = (node: ts.Node): void => {
+    if (ts.isCallExpression(node)) {
+      const startLine = callSiteFile.getLineAndCharacterOfPosition(node.getStart()).line + 1;
+      const endLine = callSiteFile.getLineAndCharacterOfPosition(node.end).line + 1;
+      const called = callTargetSymbol(checker, node);
+      if (input.callSite.line >= startLine && input.callSite.line <= endLine && called === target) {
+        calls.push(node);
+      }
+    }
+    ts.forEachChild(node, visit);
+  };
+  visit(callSiteFile);
+  if (calls.length === 0) {
+    throw new AdapterError(
+      `No call to ${input.symbol} was found at ${relativeToRepo(input.repoRoot, input.callSite.path)}:${input.callSite.line}. Point --code at the call or use --overload.`,
+    );
+  }
+
+  const relevantError = program.getSemanticDiagnostics(callSiteFile).find((diagnostic) => {
+    if (
+      diagnostic.category !== ts.DiagnosticCategory.Error ||
+      diagnostic.start === undefined ||
+      diagnostic.length === undefined
+    ) {
+      return false;
+    }
+    const end = diagnostic.start + diagnostic.length;
+    return calls.some((call) => diagnostic.start! <= call.end && end >= call.getStart());
+  });
+  if (relevantError !== undefined) {
+    throw new AdapterError(
+      `TypeScript cannot resolve the affected call: ${diagnosticText(relevantError)}.`,
+    );
+  }
+
+  const selected = calls.map((call) => {
+    const resolved = checker.getResolvedSignature(call);
+    return resolved === undefined
+      ? undefined
+      : signatures.find((candidate) => sameDeclaration(candidate, resolved));
+  });
+  if (selected.some((signature) => signature === undefined)) {
+    throw new AdapterError(
+      `TypeScript did not resolve ${input.symbol} to a declared overload at the affected call. Use --overload explicitly.`,
+    );
+  }
+  const rendered = selected.map((signature) =>
+    renderCallSignature(
+      checker,
+      signature as ts.Signature,
+      declaration,
+      input.symbol,
+      input.parameter,
+    ),
+  );
+  const unique = new Map(rendered.map((signature) => [signature.signatureHash, signature]));
+  if (unique.size !== 1) {
+    throw new AdapterError(
+      `Multiple calls to ${input.symbol} at the affected line resolve to different overloads. Put each call on its own line or use --overload.`,
+    );
+  }
+  boundedHost.assertNoEscapedRead();
+  return [...unique.values()][0] as RenderedCallSignature;
 }
 
 export async function resolveTypeScriptSymbol(
@@ -495,21 +732,10 @@ export async function resolveTypeScriptSymbol(
   }
   const sourceText = await readLimited(declarationPath, MAX_DECLARATION_BYTES);
 
-  const compilerOptions: ts.CompilerOptions = {
-    module: ts.ModuleKind.NodeNext,
-    moduleResolution: ts.ModuleResolutionKind.NodeNext,
-    target: ts.ScriptTarget.ES2022,
-    noEmit: true,
-    skipLibCheck: true,
-    strict: true,
-    types: [],
-  };
-  const boundedHost = createBoundedCompilerHost(
-    input.repoRoot,
-    compilerOptions,
-    declarationPath,
-    sourceText,
-  );
+  const compilerOptions = defaultCompilerOptions();
+  const boundedHost = createBoundedCompilerHost(input.repoRoot, compilerOptions, [
+    { path: declarationPath, text: sourceText },
+  ]);
   boundedHost.auditTransitiveSources();
   const program = ts.createProgram({
     rootNames: [declarationPath],
@@ -571,22 +797,9 @@ export async function resolveTypeScriptSymbol(
     );
   }
 
-  const renderedSignatures = signatures.map((signature): RenderedCallSignature => {
-    const rendered = checker.signatureToString(
-      signature,
-      declaration,
-      ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope,
-      ts.SignatureKind.Call,
-    );
-    const normalized = normalizeSignature(`${input.symbol}${rendered}`);
-    return {
-      signature: normalized,
-      signatureHash: `sha256:${sha256(normalized)}`,
-      parameterPresent:
-        input.parameter === undefined ||
-        signature.getParameters().some((parameter) => parameter.name === input.parameter),
-    };
-  });
+  const renderedSignatures = signatures.map((signature) =>
+    renderCallSignature(checker, signature, declaration, input.symbol, input.parameter),
+  );
   // TypeScript may defer module resolution until the checker renders a type.
   // Inspect the escape flag only after all evidence-producing checker work.
   boundedHost.assertNoEscapedRead();
@@ -608,13 +821,25 @@ export async function resolveTypeScriptSymbol(
     }
   } else if (signatures.length > 1) {
     if (input.overload === undefined) {
-      throw new AdapterError(overloadSelectionMessage(input.symbol, renderedSignatures));
-    }
-    selected = renderedSignatures[input.overload - 1];
-    if (selected === undefined) {
-      throw new AdapterError(
-        `Overload selector ${input.overload} is out of range for ${input.symbol}; expected 1-${signatures.length}.`,
-      );
+      if (input.callSite === undefined) {
+        throw new AdapterError(overloadSelectionMessage(input.symbol, renderedSignatures));
+      }
+      selected = await selectCallSiteSignature({
+        repoRoot: input.repoRoot,
+        projectRoot: input.projectRoot,
+        declarationPath,
+        declarationText: sourceText,
+        symbol: input.symbol,
+        ...(input.parameter === undefined ? {} : { parameter: input.parameter }),
+        callSite: input.callSite,
+      });
+    } else {
+      selected = renderedSignatures[input.overload - 1];
+      if (selected === undefined) {
+        throw new AdapterError(
+          `Overload selector ${input.overload} is out of range for ${input.symbol}; expected 1-${signatures.length}.`,
+        );
+      }
     }
   } else {
     if (input.overload !== undefined && input.overload !== 1) {

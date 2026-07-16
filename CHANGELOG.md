@@ -6,6 +6,25 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 No changes yet.
 
+## [0.3.0] - 2026-07-16
+
+### Added
+
+- Call-site overload resolution: when `--code path:line` identifies an overloaded call, Evidrift records the declaration selected by the consumer's TypeScript compiler configuration.
+- A deterministic `json.pointer` adapter for repository-local `.json` files, exposed through CLI and MCP with RFC 6901 escaping.
+- JSON drift classification: unrelated document edits warn, selected value changes or removal block, and invalid/unavailable JSON remains visibly unverifiable.
+- Runnable JSON Pointer example plus CLI, MCP, integrity, RFC edge-case, and boss-fight acceptance coverage.
+
+### Changed
+
+- Invalid, ambiguous, or missing overloaded calls are refused rather than guessed; explicit `--overload` remains the fallback.
+- Receipt schema v1 now accepts both `typescript.symbol` and `json.pointer` evidence without invalidating existing v0.1/v0.2 Receipts.
+- Package, CLI, MCP Registry, and release metadata now align on `0.3.0`.
+
+### Not included
+
+- Cloud accounts, hosted storage, Dashboard, URL fetching, YAML, remote `$ref`, runtime execution, or LLM judging.
+
 ## [0.2.0] - 2026-07-16
 
 ### Added

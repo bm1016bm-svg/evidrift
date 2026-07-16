@@ -69,6 +69,10 @@ test('STDIO MCP selects an overload through the shared deterministic core', asyn
       '',
     ].join('\n'),
   );
+  await writeFile(
+    path.join(fixture.app, 'src', 'index.ts'),
+    "import { parseConfig } from '@evidrift/demo-contract';\nparseConfig(42, { radix: 10 });\n",
+  );
   await initEvidrift(fixture.root);
   const client = new Client({ name: 'evidrift-overload-client', version: '1.0.0' });
   const transport = new StdioClientTransport({
@@ -86,7 +90,6 @@ test('STDIO MCP selects an overload through the shared deterministic core', asyn
         packageName: '@evidrift/demo-contract',
         symbol: 'parseConfig',
         parameter: 'options',
-        overload: 2,
         claim: 'The numeric overload accepts radix options.',
         affectedCodePath: 'app/src/index.ts',
         affectedCodeLine: 2,
@@ -97,6 +100,42 @@ test('STDIO MCP selects an overload through the shared deterministic core', asyn
     const text = result.content.find(isTextContent);
     assert.ok(text);
     assert.match(text.text, /Expected signature: parseConfig\(input:number/u);
+    const lock = await readEvidenceLock(fixture.root);
+    assert.equal(lock.receipts.length, 1);
+  } finally {
+    await client.close();
+  }
+});
+
+test('STDIO MCP records JSON Pointer evidence through the shared core', async () => {
+  const fixture = await createFixtureRepository();
+  await writeFile(path.join(fixture.app, 'contract.json'), '{"api":{"operationId":"listUsers"}}\n');
+  await initEvidrift(fixture.root);
+  const client = new Client({ name: 'evidrift-json-client', version: '1.0.0' });
+  const transport = new StdioClientTransport({
+    command: process.execPath,
+    args: [path.resolve(process.cwd(), 'dist', 'src', 'mcp.js')],
+    cwd: fixture.root,
+    stderr: 'pipe',
+  });
+  try {
+    await client.connect(transport);
+    const result = await client.callTool({
+      name: 'evidrift_record_json_pointer',
+      arguments: {
+        jsonPath: 'app/contract.json',
+        pointer: '/api/operationId',
+        claim: 'The client calls listUsers.',
+        affectedCodePath: 'app/src/index.ts',
+        affectedCodeLine: 2,
+      },
+    });
+    assert.equal(result.isError, undefined);
+    assert.ok(Array.isArray(result.content));
+    const text = result.content.find(isTextContent);
+    assert.ok(text);
+    assert.match(text.text, /JSON Pointer: \/api\/operationId/u);
+    assert.match(text.text, /Expected JSON value: "listUsers"/u);
     const lock = await readEvidenceLock(fixture.root);
     assert.equal(lock.receipts.length, 1);
   } finally {

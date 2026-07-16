@@ -320,6 +320,92 @@ test('UAT: an unavailable or malformed source is a clear non-blocking warning', 
   assert.match(malformedResult, /Invalid TypeScript declaration:/);
 });
 
+test('UAT: CLI records an RFC 6901 JSON value and reports deterministic drift', async (t) => {
+  const fixture = await fixtureFor(t);
+  const source = path.join(fixture.app, 'openapi.json');
+  await writeFile(
+    source,
+    `${JSON.stringify({ paths: { '/users': { get: { operationId: 'listUsers' } } } }, null, 2)}\n`,
+  );
+  runCli(['init', '--root', fixture.root], 0);
+  const record = runCli(
+    [
+      'record',
+      '--root',
+      fixture.root,
+      '--json',
+      'app/openapi.json',
+      '--pointer',
+      '/paths/~1users/get/operationId',
+      '--claim',
+      'The client calls the listUsers operation.',
+      '--code',
+      'app/src/index.ts:2',
+    ],
+    0,
+  );
+  const id = receiptIdFrom(record.stdout);
+  assert.match(record.stdout, /JSON Pointer: \/paths\/~1users\/get\/operationId/u);
+  assert.match(record.stdout, /Expected JSON value: "listUsers"/u);
+  assert.match(runCli(['check', '--root', fixture.root], 0).stdout, new RegExp(`PASS ${id}`));
+
+  await writeFile(
+    source,
+    `${JSON.stringify({ paths: { '/users': { get: { operationId: 'searchUsers' } } } }, null, 2)}\n`,
+  );
+  const drift = runCli(['check', '--root', fixture.root], 1).stdout;
+  assert.match(drift, new RegExp(`FAIL contract_mismatch ${id}`));
+  assert.match(drift, /Expected JSON value: "listUsers"/u);
+  assert.match(drift, /Current JSON value: "searchUsers"/u);
+  assert.match(drift, /Affected code location: app\/src\/index.ts:2/u);
+  assert.match(drift, /Action: Review the JSON contract change and affected code/u);
+});
+
+test('UAT: JSON mode rejects missing, malformed, remote, and mixed locators', async (t) => {
+  const fixture = await fixtureFor(t);
+  await writeFile(path.join(fixture.app, 'contract.json'), '{"ok":true}\n');
+  runCli(['init', '--root', fixture.root], 0);
+  const common = [
+    'record',
+    '--root',
+    fixture.root,
+    '--json',
+    'app/contract.json',
+    '--claim',
+    'The contract is present.',
+    '--code',
+    'app/src/index.ts',
+  ];
+  assert.match(
+    runCli([...common, '--pointer', 'not-a-pointer'], 2).stderr,
+    /must be empty or start/u,
+  );
+  assert.match(runCli(common, 2).stderr, /requires both --json and --pointer/u);
+  assert.match(
+    runCli([...common, '--pointer', '/ok', '--package', '@evidrift/demo-contract'], 2).stderr,
+    /--package cannot be combined with --json/u,
+  );
+  assert.match(
+    runCli(
+      [
+        'record',
+        '--root',
+        fixture.root,
+        '--json',
+        'https://does-not-exist.invalid/contract.json',
+        '--pointer',
+        '/ok',
+        '--claim',
+        'Remote evidence is refused.',
+        '--code',
+        'app/src/index.ts',
+      ],
+      2,
+    ).stderr,
+    /JSON source must be a repository-local .* not a URL/u,
+  );
+});
+
 test('UAT: transitive declarations cannot escape the repository', async (t) => {
   const { fixture } = await initializeAndRecord(t);
   const outside = await mkdtemp(path.join(tmpdir(), 'evidrift-outside-declaration-'));
@@ -444,6 +530,7 @@ test('UAT: boss-fight selects one overload, survives reordering, and detects its
     recordArguments(fixture, {
       symbol: 'bossFight',
       parameter: 'options',
+      code: 'app/src/index.ts',
       claim: 'bossFight accepts the complex options used by this caller.',
     }),
     2,
@@ -474,11 +561,15 @@ test('UAT: boss-fight selects one overload, survives reordering, and detects its
   assert.deepEqual(lock.receipts, []);
   assert.deepEqual(await readdir(path.join(fixture.root, '.evidrift', 'receipts')), []);
 
+  await writeFile(
+    path.join(fixture.app, 'src', 'index.ts'),
+    "import { bossFight } from '@evidrift/demo-contract';\nbossFight(42, { mode: 'strict', retry: { attempts: 2, backoffMs: [100] }, rules: [{ kind: 'allow', pattern: 'api:v1' }], metadata: { radix: 16 } });\n",
+  );
+
   const recorded = runCli(
     recordArguments(fixture, {
       symbol: 'bossFight',
       parameter: 'options',
-      overload: '2',
       claim: 'bossFight numeric calls accept binary, octal, decimal, or hexadecimal radix.',
     }),
     0,

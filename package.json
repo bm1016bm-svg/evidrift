@@ -1,8 +1,8 @@
 {
   "name": "evidrift",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "mcpName": "io.github.bm1016bm-svg/evidrift",
-  "description": "The lockfile for AI assumptions. Record TypeScript dependency contracts through MCP and revalidate them in CI when APIs drift.",
+  "description": "The lockfile for AI assumptions. Record TypeScript and JSON contracts through MCP, then revalidate them in CI when APIs drift.",
   "keywords": [
     "ai",
     "ai-coding-agents",
@@ -12,10 +12,12 @@
     "dependency-contracts",
     "developer-tools",
     "github-actions",
+    "json-pointer",
     "mcp",
     "mcp-server",
     "model-context-protocol",
     "provenance",
+    "openapi",
     "static-analysis",
     "typescript"
   ],
@@ -36,6 +38,7 @@
   "exports": {
     ".": "./dist/src/index.js"
   },
+  "main": "./dist/src/index.js",
   "files": [
     "dist/src",
     "README.md",

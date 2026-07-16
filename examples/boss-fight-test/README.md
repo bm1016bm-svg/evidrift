@@ -14,13 +14,24 @@ npm run build
 node --test --test-name-pattern "boss-fight" dist/tests/uat.test.js
 ```
 
-The test installs these declarations in a temporary local fixture package. Recording without a selector fails safely and lists the normalized candidates:
+The test installs these declarations in a temporary local fixture package. Recording without an affected line or selector fails safely and lists the normalized candidates:
 
 ```text
 ERROR: Symbol bossFight has 3 overloads. Rerun with --overload <1-3>. Candidates: ...
 ```
 
-The command exits `2`, writes no Receipt, and leaves `evidence.lock` empty. Recording again with `--overload 2` selects the numeric signature:
+The command exits `2`, writes no Receipt, and leaves `evidence.lock` empty. The test then points `--code` at this real call:
+
+```ts
+bossFight(42, {
+  mode: 'strict',
+  retry: { attempts: 2, backoffMs: [100] },
+  rules: [{ kind: 'allow', pattern: 'api:v1' }],
+  metadata: { radix: 16 },
+});
+```
+
+TypeScript resolves the numeric overload without `--overload`:
 
 ```text
 bossFight(input:number,options:BossFightOptions<{ radix:2|8|10|16; }>):NumericVictory
@@ -28,4 +39,4 @@ bossFight(input:number,options:BossFightOptions<{ radix:2|8|10|16; }>):NumericVi
 
 The Receipt stores that normalized signature and its hash, not the numeric selector. Replacing `index.d.ts` with `reordered.d.ts` therefore still passes. Replacing it with `drifted.d.ts` removes the selected hash and produces deterministic `FAIL contract_mismatch` with the expected signature and current overload set.
 
-The adapter does not yet infer the correct overload from the affected call expression, and it does not deep-expand every named alias into a structural contract. An agent or developer must choose one numbered candidate explicitly during record.
+The adapter does not deep-expand every named alias into a structural contract. If the affected call is missing, invalid, or ambiguous, Evidrift refuses to guess and an agent or developer can choose one numbered candidate explicitly with `--overload`.

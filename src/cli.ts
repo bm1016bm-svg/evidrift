@@ -25,6 +25,8 @@ Usage:
   evidrift init [--root <repo>]
   evidrift record --package <name> --symbol <name> [--parameter <name>] [--overload <number>]
                --claim <text> --code <path[:line]> [--project <path>] [--root <repo>]
+  evidrift record --json <path> --pointer <RFC6901> --claim <text> --code <path[:line]>
+               [--root <repo>]
   evidrift check [--root <repo>]
   evidrift diff [--root <repo>]
   evidrift explain <receipt-id> [--root <repo>]
@@ -154,9 +156,11 @@ export async function runCli(argv: string[]): Promise<number> {
       ensureOptions(parsed, [
         'claim',
         'code',
+        'json',
         'overload',
         'package',
         'parameter',
+        'pointer',
         'project',
         'root',
         'symbol',
@@ -164,17 +168,38 @@ export async function runCli(argv: string[]): Promise<number> {
       if (parsed.positionals.length > 0) {
         throw new Error('evidrift record does not accept positional arguments.');
       }
-      const packageName = option(parsed, 'package', true);
-      const symbol = option(parsed, 'symbol', true);
       const claim = option(parsed, 'claim', true);
       const affected = option(parsed, 'code', true);
-      if (
-        packageName === undefined ||
-        symbol === undefined ||
-        claim === undefined ||
-        affected === undefined
-      ) {
+      if (claim === undefined || affected === undefined) {
         throw new Error('Required record options were not parsed.');
+      }
+      const affectedCode = parseAffectedCode(affected);
+      const jsonPath = option(parsed, 'json');
+      const pointer = option(parsed, 'pointer');
+      if (jsonPath !== undefined || pointer !== undefined) {
+        if (jsonPath === undefined || pointer === undefined) {
+          throw new Error('JSON evidence requires both --json and --pointer.');
+        }
+        for (const incompatible of ['overload', 'package', 'parameter', 'project', 'symbol']) {
+          if (option(parsed, incompatible) !== undefined) {
+            throw new Error(`--${incompatible} cannot be combined with --json.`);
+          }
+        }
+        const receipt = await recordEvidence({
+          repoRoot,
+          jsonPath: assertSafeRelativePath(jsonPath, 'JSON source', false),
+          pointer,
+          claim,
+          affectedCode,
+        });
+        console.log(renderRecord(receipt, renderOptions));
+        return 0;
+      }
+
+      const packageName = option(parsed, 'package', true);
+      const symbol = option(parsed, 'symbol', true);
+      if (packageName === undefined || symbol === undefined) {
+        throw new Error('Required TypeScript record options were not parsed.');
       }
       const overload = positiveIntegerOption(parsed, 'overload');
       const receipt = await recordEvidence({
@@ -187,7 +212,7 @@ export async function runCli(argv: string[]): Promise<number> {
           : { parameter: option(parsed, 'parameter') as string }),
         ...(overload === undefined ? {} : { overload }),
         claim,
-        affectedCode: parseAffectedCode(affected),
+        affectedCode,
       });
       console.log(renderRecord(receipt, renderOptions));
       return 0;

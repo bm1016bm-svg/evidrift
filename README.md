@@ -5,7 +5,7 @@
 
 > **Code compiles. APIs drift. Evidrift is the lockfile for AI assumptions.**
 
-Coding agents can write against a dependency contract that changes tomorrow. Evidrift records the exact TypeScript symbol contract as a content-addressed Receipt, then makes CI recompute it before merge.
+Coding agents can write against a dependency or JSON contract that changes tomorrow. Evidrift records the exact TypeScript call signature or repository JSON value as a content-addressed Receipt, then makes CI recompute it before merge.
 
 Local-first CLI. STDIO MCP server. No account, no cloud backend, no LLM judge, and no package code execution.
 
@@ -71,7 +71,21 @@ evidrift record \
 evidrift check
 ```
 
-Coding agents call the same record path through `evidrift_record`. Minimal [Codex, Claude Code, and Cursor setup](docs/mcp.md) is included.
+When `--code` includes a line containing an overloaded call, Evidrift asks TypeScript which overload that call actually resolves to. `--overload <number>` remains an explicit fallback for incomplete or non-compiling call sites.
+
+Lock one value from a repository-local OpenAPI or JSON Schema document:
+
+```bash
+evidrift record \
+  --json openapi.json \
+  --pointer /paths/~1users/get/operationId \
+  --claim "The generated client calls listUsers." \
+  --code src/client.ts:24
+```
+
+JSON Pointer follows RFC 6901, including `~1` for `/` and `~0` for `~`. Evidrift reads `.json` files only; it never fetches URLs or resolves remote references.
+
+Coding agents call the same core through `evidrift_record` and `evidrift_record_json_pointer`. Minimal [Codex, Claude Code, and Cursor setup](docs/mcp.md) is included.
 
 ## The Files
 
@@ -93,19 +107,19 @@ There is no `.evidrift/receipts.json`. `evidence.lock` contains only content-add
 }
 ```
 
-Each Receipt stores the claim, affected code, installed package version, resolved declaration path, symbol or parameter, normalized signature, and signature hash. See the [Receipt schema](docs/receipt-schema.md).
+Each Receipt stores the claim and affected code plus one deterministic contract: an installed TypeScript symbol signature, or a repository JSON path, pointer, canonical value, and hashes. See the [Receipt schema](docs/receipt-schema.md).
 
 ## CI Behavior
 
-`evidrift check` does not trust saved `matched` or `verified` flags. It validates the Receipt, resolves the installed package again, and recomputes the signature.
+`evidrift check` does not trust saved `matched` or `verified` flags. It validates the Receipt, reloads the source, and recomputes the selected signature or JSON value.
 
-| Result                    | Meaning                                                        | Exit |
-| ------------------------- | -------------------------------------------------------------- | ---: |
-| `PASS`                    | The deterministic signature still matches                      |    0 |
-| `WARNING source_changed`  | Version or resolved path changed, but the signature matches    |    0 |
-| `WARNING unverifiable`    | Source is missing, invalid, or cannot be inspected             |    0 |
-| `FAIL contract_mismatch`  | Signature, symbol, or supported callable contract changed      |    1 |
-| `FAIL evidence_integrity` | Lock or Receipt is malformed, missing, forged, or hash-invalid |    2 |
+| Result                    | Meaning                                                            | Exit |
+| ------------------------- | ------------------------------------------------------------------ | ---: |
+| `PASS`                    | The deterministic signature or JSON value still matches            |    0 |
+| `WARNING source_changed`  | Source identity/content changed, but the selected contract matches |    0 |
+| `WARNING unverifiable`    | Source is missing, invalid, or cannot be inspected                 |    0 |
+| `FAIL contract_mismatch`  | Selected TypeScript signature or JSON value changed/disappeared    |    1 |
+| `FAIL evidence_integrity` | Lock or Receipt is malformed, missing, forged, or hash-invalid     |    2 |
 
 A one-line manual edit to a Receipt produces an actionable integrity report:
 
@@ -136,6 +150,7 @@ Use all of them if they help. Evidrift covers one gap: the reason code was writt
 evidrift init
 evidrift record --project <path> --package <name> --symbol <name> \
   [--parameter <name>] [--overload <number>] --claim <text> --code <path[:line]>
+evidrift record --json <path> --pointer <RFC6901> --claim <text> --code <path[:line]>
 evidrift check
 evidrift diff
 evidrift explain <receipt-id>
@@ -153,11 +168,11 @@ All commands accept `--root <repo>`. `record` requires an initialized `.evidrift
 
 1. Strictly validates lock and Receipt schemas.
 2. Derives file paths only from full SHA-256 IDs.
-3. Recomputes the expected-signature hash and Receipt content hash.
-4. Resolves declarations without importing package JavaScript, running shell commands, making network requests, or calling an LLM.
+3. Recomputes the expected contract hash and Receipt content hash.
+4. Resolves declarations or repository-local JSON without importing package JavaScript, running shell commands, making network requests, or calling an LLM.
 5. Reports evidence integrity, source drift, semantic support, and runtime correctness separately.
 
-The parser refuses more than 1,024 Receipt IDs or 64 call signatures per symbol. TypeScript evidence is confined to repository files and capped at 256 source files, 2 MiB per file, and 16 MiB total. Dynamic text is rejected or escaped so a Receipt cannot inject terminal controls or fake CI lines.
+The parser refuses more than 1,024 Receipt IDs or 64 call signatures per symbol. TypeScript evidence is confined to repository files and capped at 256 source files, 2 MiB per file, and 16 MiB total. JSON sources are capped at 4 MiB and selected canonical values at 1 MiB. Dynamic text is rejected or escaped so a Receipt cannot inject terminal controls or fake CI lines.
 
 Content hashes detect inconsistent edits; they do not prove authorship. Someone who rewrites a Receipt, recalculates its ID, and changes `evidence.lock` can create new internally valid evidence. Git review and branch protection must catch that replacement. See [Architecture](docs/architecture.md).
 
@@ -165,11 +180,11 @@ Content hashes detect inconsistent edits; they do not prove authorship. Someone 
 
 Evidrift does not prove code is correct. It does not prove a free-text claim is true, inspect runtime behavior, eliminate hallucinations, scan dependency vulnerabilities, or validate arbitrary URLs.
 
-The v0.2 source tree supports overloaded exported symbols through an explicit, 1-based `--overload` selector. The index is used only while recording; the Receipt stores the selected normalized signature and hash, so declaration reordering does not cause false drift. Evidrift does not yet infer an overload from the affected call site.
+The v0.3 source tree resolves overloaded TypeScript calls from the affected `path:line` when the consumer code compiles and TypeScript can identify one declared overload. Invalid, ambiguous, or missing calls are refused rather than guessed; `--overload` is the explicit fallback. The Receipt stores the selected normalized signature and hash, so declaration reordering does not cause false drift.
 
-It follows repository-local declaration imports, but does not expand every named type into a deep structural contract. Missing or unreadable source is a visible but non-blocking warning. These are deliberate limits, not hidden guarantees.
+The `json.pointer` adapter locks canonical values in repository-local `.json` files. It does not support YAML, URLs, remote `$ref`, schema validation, or semantic equivalence. It follows repository-local TypeScript declaration imports, but does not expand every named type into a deep structural contract. Missing or unreadable source is a visible but non-blocking warning. These are deliberate limits, not hidden guarantees.
 
-The runnable [boss-fight test](examples/boss-fight-test/README.md) records one of three overloads using a complex cross-file type alias, survives declaration reordering, and deterministically fails when only the selected overload changes.
+The runnable [boss-fight test](examples/boss-fight-test/README.md) resolves one of three overloads from a real call using a complex cross-file type alias, survives declaration reordering, and deterministically fails when only the selected overload changes.
 
 ## Development and UAT
 

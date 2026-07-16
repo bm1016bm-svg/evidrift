@@ -7,7 +7,7 @@ function fail(message) {
 
 const tag = process.argv[2] ?? process.env.GITHUB_REF_NAME;
 if (tag === undefined) {
-  fail('provide a tag such as v0.2.0.');
+  fail('provide a tag such as v0.3.0.');
 }
 if (!/^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$/u.test(tag)) {
   fail(`tag ${tag} is not a stable semantic version.`);

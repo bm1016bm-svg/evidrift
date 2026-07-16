@@ -2,7 +2,7 @@
 
 ## Supported versions
 
-Only the latest `0.1.x` release on `main` receives security fixes during the v0.1 phase. No npm package is published.
+Only the latest published `0.x` release on `main` receives security fixes before 1.0.
 
 ## Reporting a vulnerability
 
@@ -12,7 +12,7 @@ Include the affected commit, platform, reproduction steps, impact, and any sugge
 
 ## Security model
 
-Evidrift treats `.evidrift/evidence.lock` and every Receipt as untrusted input. The supported adapter reads bounded local JSON and TypeScript declaration files; it does not execute dependencies, package scripts, shell commands, network requests, or LLM calls.
+Evidrift treats `.evidrift/evidence.lock` and every Receipt as untrusted input. Its adapters read bounded repository-local JSON and TypeScript source/declaration files; they do not execute dependencies, package scripts, shell commands, network requests, or LLM calls.
 
 Security-sensitive reports include:
 

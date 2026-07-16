@@ -6,6 +6,7 @@ import {
   ContractMismatchError,
   resolveTypeScriptSymbol,
 } from './adapter/typescript-symbol.js';
+import { JsonPointerMismatchError, resolveJsonPointer } from './adapter/json-pointer.js';
 import { relativeToRepo, resolveInside } from './paths.js';
 import { hasUnsafeControlCharacters } from './text.js';
 import {
@@ -36,10 +37,6 @@ function validateText(value: string, label: string, maximum: number): void {
 export async function recordEvidence(input: RecordInput): Promise<Receipt> {
   validateText(input.claim, 'Claim', 500);
   const repoRoot = await realpath(input.repoRoot);
-  const projectRoot = await realpath(input.projectRoot);
-  if (resolveInside(repoRoot, projectRoot, 'Project root') !== projectRoot) {
-    throw new Error('Project root resolution is inconsistent.');
-  }
   const affectedCodePath = resolveInside(repoRoot, input.affectedCode.path, 'Affected code');
   let affectedCodeRealPath: string;
   try {
@@ -53,7 +50,31 @@ export async function recordEvidence(input: RecordInput): Promise<Receipt> {
   if (!(await stat(affectedCodeRealPath)).isFile()) {
     throw new Error(`Affected code path is not a regular file: ${input.affectedCode.path}.`);
   }
-  const projectRelative = relativeToRepo(repoRoot, projectRoot);
+  if ('jsonPath' in input) {
+    const source = await resolveJsonPointer({
+      repoRoot,
+      sourcePath: input.jsonPath,
+      pointer: input.pointer,
+    });
+    return writeReceipt(repoRoot, {
+      schemaVersion: RECEIPT_SCHEMA_VERSION,
+      claim: input.claim.trim(),
+      affectedCode: input.affectedCode,
+      evidence: {
+        adapter: 'json.pointer',
+        sourcePath: source.sourcePath,
+        pointer: source.pointer,
+        expectedValue: source.value,
+        valueHash: source.valueHash,
+        sourceHash: source.sourceHash,
+      },
+    });
+  }
+
+  const projectRoot = await realpath(input.projectRoot);
+  if (resolveInside(repoRoot, projectRoot, 'Project root') !== projectRoot) {
+    throw new Error('Project root resolution is inconsistent.');
+  }
   const source = await resolveTypeScriptSymbol({
     repoRoot,
     projectRoot,
@@ -61,6 +82,9 @@ export async function recordEvidence(input: RecordInput): Promise<Receipt> {
     symbol: input.symbol,
     ...(input.parameter === undefined ? {} : { parameter: input.parameter }),
     ...(input.overload === undefined ? {} : { overload: input.overload }),
+    ...(input.affectedCode.line === undefined
+      ? {}
+      : { callSite: { path: affectedCodeRealPath, line: input.affectedCode.line } }),
   });
   if (input.parameter !== undefined && source.parameterPresent !== true) {
     throw new AdapterError(`Parameter ${input.parameter} was not found on ${input.symbol}.`);
@@ -71,7 +95,7 @@ export async function recordEvidence(input: RecordInput): Promise<Receipt> {
     affectedCode: input.affectedCode,
     evidence: {
       adapter: 'typescript.symbol',
-      projectRoot: projectRelative,
+      projectRoot: relativeToRepo(repoRoot, projectRoot),
       package: {
         name: source.packageName,
         version: source.packageVersion,
@@ -88,6 +112,67 @@ export async function recordEvidence(input: RecordInput): Promise<Receipt> {
 
 async function checkReceipt(repoRoot: string, receipt: Receipt): Promise<CheckResult> {
   const evidence = receipt.evidence;
+  if (evidence.adapter === 'json.pointer') {
+    try {
+      const current = await resolveJsonPointer({
+        repoRoot,
+        sourcePath: evidence.sourcePath,
+        pointer: evidence.pointer,
+        expectedValueHash: evidence.valueHash,
+      });
+      const common = {
+        receiptId: receipt.id,
+        claim: receipt.claim,
+        expectedJsonValue: evidence.expectedValue,
+        currentJsonValue: current.value,
+        affectedCode: receipt.affectedCode,
+        sourcePath: evidence.sourcePath,
+        expectedSourceHash: evidence.sourceHash,
+        currentSourceHash: current.sourceHash,
+      };
+      if (current.sourceHash !== evidence.sourceHash) {
+        return {
+          ...common,
+          status: 'source_changed',
+          blocking: false,
+          message: 'JSON source changed, but the selected pointer value still matches.',
+        };
+      }
+      return {
+        ...common,
+        status: 'pass',
+        blocking: false,
+        message: 'Deterministic JSON Pointer value matches.',
+      };
+    } catch (error) {
+      if (error instanceof JsonPointerMismatchError) {
+        return {
+          receiptId: receipt.id,
+          status: 'contract_mismatch',
+          blocking: true,
+          claim: receipt.claim,
+          expectedJsonValue: evidence.expectedValue,
+          currentJsonValue: error.currentValue,
+          affectedCode: receipt.affectedCode,
+          sourcePath: evidence.sourcePath,
+          expectedSourceHash: evidence.sourceHash,
+          message: `Deterministic JSON contract mismatch: ${error.message}`,
+        };
+      }
+      return {
+        receiptId: receipt.id,
+        status: 'unverifiable',
+        blocking: false,
+        claim: receipt.claim,
+        expectedJsonValue: evidence.expectedValue,
+        affectedCode: receipt.affectedCode,
+        sourcePath: evidence.sourcePath,
+        expectedSourceHash: evidence.sourceHash,
+        message: `JSON source could not be revalidated: ${error instanceof Error ? error.message : String(error)}`,
+      };
+    }
+  }
+
   try {
     const projectRoot = await realpath(
       resolveInside(repoRoot, evidence.projectRoot, 'Project root'),

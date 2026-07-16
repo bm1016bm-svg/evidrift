@@ -47,10 +47,18 @@ export function renderRecord(receipt: Receipt, options: RenderOptions = {}): str
   const receiptId = escapeOutputText(receipt.id);
   const recorded =
     options.interactive === true ? terminalStyle(options).green.bold('✅ RECORDED') : 'RECORDED';
+  const evidence =
+    receipt.evidence.adapter === 'typescript.symbol'
+      ? [`Expected signature: ${escapeOutputText(receipt.evidence.expectedSignature)}`]
+      : [
+          `JSON source: ${escapeOutputText(receipt.evidence.sourcePath)}`,
+          `JSON Pointer: ${escapeOutputText(receipt.evidence.pointer || '(root)')}`,
+          `Expected JSON value: ${escapeOutputText(receipt.evidence.expectedValue)}`,
+        ];
   return [
     `${recorded} ${receiptId}`,
     `Claim: ${escapeOutputText(receipt.claim)}`,
-    `Expected signature: ${escapeOutputText(receipt.evidence.expectedSignature)}`,
+    ...evidence,
     `Affected code location: ${escapeOutputText(affectedCodeLabel(receipt.affectedCode.path, receipt.affectedCode.line))}`,
     `Receipt ID: ${receiptId}`,
     `Receipt file: .evidrift/receipts/${escapeOutputText(receipt.id.slice('sha256:'.length))}.json`,
@@ -73,6 +81,12 @@ export function renderResult(result: CheckResult, options: RenderOptions = {}): 
   if (result.currentSignature !== undefined) {
     lines.push(`Current signature: ${escapeOutputText(result.currentSignature)}`);
   }
+  if (result.expectedJsonValue !== undefined) {
+    lines.push(`Expected JSON value: ${escapeOutputText(result.expectedJsonValue)}`);
+  }
+  if (result.currentJsonValue !== undefined) {
+    lines.push(`Current JSON value: ${escapeOutputText(result.currentJsonValue)}`);
+  }
   if (result.affectedCode !== undefined) {
     lines.push(
       `Affected code location: ${escapeOutputText(affectedCodeLabel(result.affectedCode.path, result.affectedCode.line))}`,
@@ -89,9 +103,19 @@ export function renderResult(result: CheckResult, options: RenderOptions = {}): 
       `Resolved path: expected ${escapeOutputText(result.expectedResolvedPath)}; current ${escapeOutputText(result.currentResolvedPath ?? 'unavailable')}`,
     );
   }
+  if (result.sourcePath !== undefined) {
+    lines.push(`JSON source: ${escapeOutputText(result.sourcePath)}`);
+  }
+  if (result.expectedSourceHash !== undefined) {
+    lines.push(
+      `JSON source hash: expected ${escapeOutputText(result.expectedSourceHash)}; current ${escapeOutputText(result.currentSourceHash ?? 'unavailable')}`,
+    );
+  }
   if (result.status === 'contract_mismatch') {
     lines.push(
-      'Action: Review the dependency change and affected code, then intentionally record a new receipt.',
+      result.expectedJsonValue === undefined
+        ? 'Action: Review the dependency change and affected code, then intentionally record a new receipt.'
+        : 'Action: Review the JSON contract change and affected code, then intentionally record a new receipt.',
     );
   }
   if (result.status === 'source_changed') {
@@ -101,7 +125,9 @@ export function renderResult(result: CheckResult, options: RenderOptions = {}): 
   }
   if (result.status === 'unverifiable') {
     lines.push(
-      'Action: Restore the dependency source and rerun check; Evidrift reports this as non-blocking.',
+      result.expectedJsonValue === undefined
+        ? 'Action: Restore the dependency source and rerun check; Evidrift reports this as non-blocking.'
+        : 'Action: Restore valid repository-local JSON and rerun check; Evidrift reports this as non-blocking.',
     );
   }
   if (result.status === 'integrity_error') {

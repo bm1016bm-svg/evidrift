@@ -13,7 +13,7 @@ Node.js 22 or newer is required. Tests must run from a clean clone without secre
 
 ## Pull requests
 
-- Keep changes inside the documented v0.2 trust model unless an issue establishes a new scope.
+- Keep changes inside the documented v0.3 trust model unless an issue establishes a new scope.
 - Add tests for behavior and security boundaries.
 - Do not add arbitrary command execution, LLM judgments, or stored verification flags to receipts.
 - Update architecture/schema documentation when an invariant changes.

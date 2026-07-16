@@ -2,13 +2,16 @@ import { lstat, mkdir, readFile, realpath, rename, writeFile } from 'node:fs/pro
 import path from 'node:path';
 
 import { canonicalStringify, contentHash, sha256 } from './canonical.js';
+import { validateJsonPointer } from './adapter/json-pointer.js';
 import { assertSafeRelativePath, isInside, receiptFileName } from './paths.js';
 import { hasUnsafeControlCharacters } from './text.js';
 import {
   LOCK_SCHEMA_VERSION,
   RECEIPT_SCHEMA_VERSION,
   type AffectedCode,
+  type Evidence,
   type EvidenceLock,
+  type JsonPointerEvidence,
   type Receipt,
   type ReceiptPayload,
   type TypeScriptSymbolEvidence,
@@ -98,8 +101,7 @@ function parseAffectedCode(value: unknown): AffectedCode {
     : { path: safePath, line: record.line as number };
 }
 
-function parseEvidence(value: unknown): TypeScriptSymbolEvidence {
-  const record = asRecord(value, 'evidence');
+function parseTypeScriptEvidence(record: Record<string, unknown>): TypeScriptSymbolEvidence {
   const expectedKeys = [
     'adapter',
     'expectedSignature',
@@ -167,6 +169,67 @@ function parseEvidence(value: unknown): TypeScriptSymbolEvidence {
     expectedSignature,
     signatureHash: record.signatureHash,
   };
+}
+
+function parseJsonPointerEvidence(record: Record<string, unknown>): JsonPointerEvidence {
+  assertExactKeys(
+    record,
+    ['adapter', 'expectedValue', 'pointer', 'sourceHash', 'sourcePath', 'valueHash'],
+    'evidence',
+  );
+  const sourcePath = assertCanonicalRelativePath(
+    assertText(record.sourcePath, 'evidence.sourcePath', MAX_PATH_CHARACTERS),
+    'evidence.sourcePath',
+    false,
+  );
+  if (path.extname(sourcePath).toLowerCase() !== '.json') {
+    throw new IntegrityError('evidence.sourcePath must name a `.json` file.');
+  }
+  let pointer: string;
+  try {
+    pointer = validateJsonPointer(record.pointer);
+  } catch (error) {
+    throw new IntegrityError(error instanceof Error ? error.message : String(error));
+  }
+  const expectedValue = assertText(record.expectedValue, 'evidence.expectedValue', 1024 * 1024);
+  let parsedValue: unknown;
+  try {
+    parsedValue = JSON.parse(expectedValue) as unknown;
+  } catch {
+    throw new IntegrityError('evidence.expectedValue must be canonical JSON.');
+  }
+  if (canonicalStringify(parsedValue) !== expectedValue) {
+    throw new IntegrityError('evidence.expectedValue must use canonical JSON serialization.');
+  }
+  if (
+    typeof record.valueHash !== 'string' ||
+    !SHA256_ID.test(record.valueHash) ||
+    record.valueHash !== `sha256:${sha256(expectedValue)}`
+  ) {
+    throw new IntegrityError('evidence.valueHash does not match expectedValue.');
+  }
+  if (typeof record.sourceHash !== 'string' || !SHA256_ID.test(record.sourceHash)) {
+    throw new IntegrityError('evidence.sourceHash must be a full sha256 hash.');
+  }
+  return {
+    adapter: 'json.pointer',
+    sourcePath,
+    pointer,
+    expectedValue,
+    valueHash: record.valueHash,
+    sourceHash: record.sourceHash,
+  };
+}
+
+function parseEvidence(value: unknown): Evidence {
+  const record = asRecord(value, 'evidence');
+  if (record.adapter === 'typescript.symbol') {
+    return parseTypeScriptEvidence(record);
+  }
+  if (record.adapter === 'json.pointer') {
+    return parseJsonPointerEvidence(record);
+  }
+  throw new IntegrityError('Evidence adapter must be `typescript.symbol` or `json.pointer`.');
 }
 
 function parseReceiptPayload(value: unknown): ReceiptPayload {

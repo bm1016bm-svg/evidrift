@@ -7,7 +7,7 @@ npm install --save-dev evidrift
 npx evidrift init
 ```
 
-The server uses its working directory as the repository root and exposes only `evidrift_record`. The package-level `evidrift mcp` command and the standalone `evidrift-mcp` bin start the same STDIO server.
+The server uses its working directory as the repository root and exposes `evidrift_record` for TypeScript plus `evidrift_record_json_pointer` for repository JSON. The package-level `evidrift mcp` command and the standalone `evidrift-mcp` bin start the same STDIO server.
 
 ## Codex
 
@@ -75,7 +75,7 @@ On Windows, use `npx.cmd` if the MCP client does not resolve PowerShell command 
 
 `server.json` describes `io.github.bm1016bm-svg/evidrift` as an npm-backed local STDIO server. Its fixed package argument is `mcp`, so registry clients launch `npx evidrift mcp` instead of accidentally entering the human CLI. The Git tag, npm package, server metadata, and registry entry must use the same version.
 
-## Tool contract
+## TypeScript tool contract
 
 `evidrift_record` accepts:
 
@@ -83,10 +83,21 @@ On Windows, use `npx.cmd` if the MCP client does not resolve PowerShell command 
 - `packageName`: installed registry-style npm package name.
 - `symbol`: exported callable symbol.
 - `parameter`: optional parameter that must exist when recording.
-- `overload`: optional 1-based overload selector. It is required when `symbol` has multiple call signatures.
+- `overload`: optional 1-based overload selector used as a fallback when the affected call site cannot be resolved.
 - `claim`: human explanation, maximum 500 characters.
 - `affectedCodePath` and optional `affectedCodeLine`.
 
-When an overloaded symbol is submitted without `overload`, the tool returns a classified error containing numbered, normalized candidates and writes no Receipt. The agent can then retry with one explicit candidate. The selector index is not trusted during later checks; revalidation searches the current overload set for the content hash saved in the Receipt.
+When `affectedCodeLine` points at a call to an overloaded symbol, Evidrift loads the consumer TypeScript configuration and records the declared overload selected by TypeScript. A syntax error, semantic error on the call, wrong location, or multiple different calls on one line is refused rather than guessed. Without a usable call site, the tool returns numbered normalized candidates and the agent can retry with `overload`. The selector index is not trusted during later checks; revalidation searches the current overload set for the content hash saved in the Receipt.
 
-The tool constructs the Receipt itself. An agent cannot submit raw Receipt JSON, set an ID, store a verification result, or request arbitrary command execution.
+## JSON Pointer tool contract
+
+`evidrift_record_json_pointer` accepts:
+
+- `jsonPath`: repository-relative `.json` source path.
+- `pointer`: RFC 6901 JSON Pointer. The empty string selects the document root.
+- `claim`: human explanation, maximum 500 characters.
+- `affectedCodePath` and optional `affectedCodeLine`.
+
+The tool accepts no URL, project command, raw value, hash, or verification status. It reads the JSON file, resolves the pointer, canonicalizes the selected JSON value, and constructs the Receipt itself. Later checks recompute both the selected value hash and the whole-document source hash. An unrelated document edit warns; a selected value change or removal blocks.
+
+Both tools construct Receipts through the same core. An agent cannot submit raw Receipt JSON, set an ID, store a verification result, fetch a URL, or request arbitrary command execution.

@@ -22,7 +22,7 @@ export function createEvidriftMcpServer(repoRoot = process.cwd()): McpServer {
     {
       title: 'Record deterministic TypeScript evidence',
       description:
-        'Resolve an actually installed dependency and create a content-addressed Evidrift receipt. The tool records evidence only; it never declares the receipt verified or the code correct.',
+        'Resolve an actually installed dependency and create a content-addressed Evidrift receipt. When affectedCodeLine points at an overloaded call, TypeScript selects the real call-site signature. The tool records evidence only; it never declares the receipt verified or the code correct.',
       inputSchema: z
         .object({
           projectRoot: z
@@ -77,6 +77,64 @@ export function createEvidriftMcpServer(repoRoot = process.cwd()): McpServer {
         return {
           content: [{ type: 'text' as const, text: renderRecord(receipt) }],
         };
+      } catch (error) {
+        return {
+          content: [
+            {
+              type: 'text' as const,
+              text: `Evidrift refused to record evidence: ${escapeOutputText(error instanceof Error ? error.message : String(error))}`,
+            },
+          ],
+          isError: true,
+        };
+      }
+    },
+  );
+
+  server.registerTool(
+    'evidrift_record_json_pointer',
+    {
+      title: 'Record deterministic JSON Pointer evidence',
+      description:
+        'Read one repository-local JSON file, resolve an RFC 6901 pointer, and create a content-addressed Evidrift receipt. No URL, command, package code, or LLM is invoked.',
+      inputSchema: z
+        .object({
+          jsonPath: z.string().describe('Repository-relative `.json` source path.'),
+          pointer: z
+            .string()
+            .max(4096)
+            .describe('RFC 6901 JSON Pointer. An empty string selects the document root.'),
+          claim: z
+            .string()
+            .min(1)
+            .max(500)
+            .describe('Human claim explaining why this JSON contract matters.'),
+          affectedCodePath: z
+            .string()
+            .describe('Repository-relative source file affected by the claim.'),
+          affectedCodeLine: z.number().int().positive().optional(),
+        })
+        .strict(),
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+    },
+    async (input) => {
+      try {
+        const receipt = await recordEvidence({
+          repoRoot: absoluteRepoRoot,
+          jsonPath: assertSafeRelativePath(input.jsonPath, 'JSON source', false),
+          pointer: input.pointer,
+          claim: input.claim,
+          affectedCode: {
+            path: assertSafeRelativePath(input.affectedCodePath, 'Affected code', false),
+            ...(input.affectedCodeLine === undefined ? {} : { line: input.affectedCodeLine }),
+          },
+        });
+        return { content: [{ type: 'text' as const, text: renderRecord(receipt) }] };
       } catch (error) {
         return {
           content: [

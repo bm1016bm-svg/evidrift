@@ -2,17 +2,17 @@
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "io.github.bm1016bm-svg/evidrift",
   "title": "Evidrift",
-  "description": "Lock TypeScript dependency assumptions through MCP; revalidate them deterministically in CI.",
+  "description": "Lock TypeScript and JSON assumptions through MCP, then catch deterministic contract drift in CI.",
   "repository": {
     "url": "https://github.com/bm1016bm-svg/evidrift",
     "source": "github"
   },
-  "version": "0.2.0",
+  "version": "0.3.0",
   "packages": [
     {
       "registryType": "npm",
       "identifier": "evidrift",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "runtimeHint": "npx",
       "packageArguments": [
         {

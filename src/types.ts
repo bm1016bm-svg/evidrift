@@ -1,6 +1,6 @@
 export const RECEIPT_SCHEMA_VERSION = 1 as const;
 export const LOCK_SCHEMA_VERSION = 1 as const;
-export const EVIDRIFT_VERSION = '0.2.0';
+export const EVIDRIFT_VERSION = '0.3.0';
 
 export interface AffectedCode {
   path: string;
@@ -21,11 +21,22 @@ export interface TypeScriptSymbolEvidence {
   signatureHash: string;
 }
 
+export interface JsonPointerEvidence {
+  adapter: 'json.pointer';
+  sourcePath: string;
+  pointer: string;
+  expectedValue: string;
+  valueHash: string;
+  sourceHash: string;
+}
+
+export type Evidence = TypeScriptSymbolEvidence | JsonPointerEvidence;
+
 export interface ReceiptPayload {
   schemaVersion: typeof RECEIPT_SCHEMA_VERSION;
   claim: string;
   affectedCode: AffectedCode;
-  evidence: TypeScriptSymbolEvidence;
+  evidence: Evidence;
 }
 
 export interface Receipt extends ReceiptPayload {
@@ -48,6 +59,14 @@ export interface ResolvedTypeScriptSymbol {
   signatureHash: string;
 }
 
+export interface ResolvedJsonPointer {
+  sourcePath: string;
+  pointer: string;
+  value: string;
+  valueHash: string;
+  sourceHash: string;
+}
+
 export type CheckStatus =
   'pass' | 'source_changed' | 'contract_mismatch' | 'integrity_error' | 'unverifiable';
 
@@ -58,6 +77,11 @@ export interface CheckResult {
   claim?: string;
   expectedSignature?: string;
   currentSignature?: string;
+  expectedJsonValue?: string;
+  currentJsonValue?: string;
+  sourcePath?: string;
+  expectedSourceHash?: string;
+  currentSourceHash?: string;
   affectedCode?: AffectedCode;
   expectedPackageVersion?: string;
   currentPackageVersion?: string;
@@ -66,13 +90,23 @@ export interface CheckResult {
   message: string;
 }
 
-export interface RecordInput {
+interface RecordBase {
   repoRoot: string;
+  claim: string;
+  affectedCode: AffectedCode;
+}
+
+export interface TypeScriptRecordInput extends RecordBase {
   projectRoot: string;
   packageName: string;
   symbol: string;
   parameter?: string;
   overload?: number;
-  claim: string;
-  affectedCode: AffectedCode;
 }
+
+export interface JsonPointerRecordInput extends RecordBase {
+  jsonPath: string;
+  pointer: string;
+}
+
+export type RecordInput = TypeScriptRecordInput | JsonPointerRecordInput;
