@@ -60,6 +60,7 @@ export async function recordEvidence(input: RecordInput): Promise<Receipt> {
     packageName: input.packageName,
     symbol: input.symbol,
     ...(input.parameter === undefined ? {} : { parameter: input.parameter }),
+    ...(input.overload === undefined ? {} : { overload: input.overload }),
   });
   if (input.parameter !== undefined && source.parameterPresent !== true) {
     throw new AdapterError(`Parameter ${input.parameter} was not found on ${input.symbol}.`);
@@ -97,6 +98,7 @@ async function checkReceipt(repoRoot: string, receipt: Receipt): Promise<CheckRe
       packageName: evidence.package.name,
       symbol: evidence.symbol,
       ...(evidence.parameter === undefined ? {} : { parameter: evidence.parameter }),
+      expectedSignatureHash: evidence.signatureHash,
     });
 
     const common = {

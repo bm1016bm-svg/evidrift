@@ -7,6 +7,20 @@ import { test } from 'node:test';
 import { checkExitCode, checkRepository, initEvidrift, recordEvidence } from '../src/core.js';
 import { changeFixtureVersion, createFixtureRepository, DRIFTED_DECLARATION } from './helpers.js';
 
+const OVERLOADED_DECLARATION = [
+  "export declare function parseConfig(input: string, options?: { format: 'text' }): string;",
+  'export declare function parseConfig(input: number, options: { radix: 2 | 10 }): number;',
+  'export declare function parseConfig(input: Uint8Array, options?: { copy: boolean }): Uint8Array;',
+  '',
+].join('\n');
+
+const REORDERED_OVERLOADED_DECLARATION = [
+  'export declare function parseConfig(input: Uint8Array, options?: { copy: boolean }): Uint8Array;',
+  "export declare function parseConfig(input: string, options?: { format: 'text' }): string;",
+  'export declare function parseConfig(input: number, options: { radix: 2 | 10 }): number;',
+  '',
+].join('\n');
+
 async function recordFixture() {
   const fixture = await createFixtureRepository();
   await initEvidrift(fixture.root);
@@ -58,6 +72,141 @@ test('signature drift is a deterministic blocking mismatch', async () => {
   assert.equal(results[0]?.blocking, true);
   assert.equal(checkExitCode(results), 1);
   assert.notEqual(results[0]?.expectedSignature, results[0]?.currentSignature);
+});
+
+test('selected overload is content-addressed and survives declaration reordering', async () => {
+  const fixture = await createFixtureRepository();
+  await writeFile(path.join(fixture.dependency, 'index.d.ts'), OVERLOADED_DECLARATION);
+  await initEvidrift(fixture.root);
+  const receipt = await recordEvidence({
+    repoRoot: fixture.root,
+    projectRoot: fixture.app,
+    packageName: '@evidrift/demo-contract',
+    symbol: 'parseConfig',
+    parameter: 'options',
+    overload: 2,
+    claim: 'The numeric overload accepts radix options.',
+    affectedCode: { path: 'app/src/index.ts', line: 2 },
+  });
+
+  assert.match(receipt.evidence.expectedSignature, /parseConfig\(input:number,options:/u);
+  assert.match(receipt.evidence.expectedSignature, /radix:2\|10/u);
+  assert.equal('overload' in receipt.evidence, false);
+  assert.equal((await checkRepository(fixture.root))[0]?.status, 'pass');
+
+  await writeFile(path.join(fixture.dependency, 'index.d.ts'), REORDERED_OVERLOADED_DECLARATION);
+  assert.equal((await checkRepository(fixture.root))[0]?.status, 'pass');
+
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    `export declare function parseConfig(input: boolean): boolean;\n${REORDERED_OVERLOADED_DECLARATION}`,
+  );
+  assert.equal((await checkRepository(fixture.root))[0]?.status, 'pass');
+});
+
+test('a v0.1-style single-signature receipt survives an unrelated overload addition', async () => {
+  const { fixture, receipt } = await recordFixture();
+  assert.equal('overload' in receipt.evidence, false);
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    [
+      'export interface ParseOptions { strict?: boolean; }',
+      'export interface ParseResult { value: string; }',
+      'export declare function parseConfig(input: number): ParseResult;',
+      'export declare function parseConfig(input: string, options?: ParseOptions): ParseResult;',
+      '',
+    ].join('\n'),
+  );
+
+  const results = await checkRepository(fixture.root);
+  assert.equal(results[0]?.status, 'pass');
+  assert.equal(results[0]?.currentSignature, receipt.evidence.expectedSignature);
+});
+
+test('selected overload drift is a deterministic blocking mismatch', async () => {
+  const fixture = await createFixtureRepository();
+  await writeFile(path.join(fixture.dependency, 'index.d.ts'), OVERLOADED_DECLARATION);
+  await initEvidrift(fixture.root);
+  await recordEvidence({
+    repoRoot: fixture.root,
+    projectRoot: fixture.app,
+    packageName: '@evidrift/demo-contract',
+    symbol: 'parseConfig',
+    parameter: 'options',
+    overload: 2,
+    claim: 'The numeric overload accepts binary or decimal radix options.',
+    affectedCode: { path: 'app/src/index.ts', line: 2 },
+  });
+
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    OVERLOADED_DECLARATION.replace('radix: 2 | 10', 'radix: 2 | 8 | 10'),
+  );
+  const results = await checkRepository(fixture.root);
+  assert.equal(results[0]?.status, 'contract_mismatch');
+  assert.equal(results[0]?.blocking, true);
+  assert.match(results[0]?.expectedSignature ?? '', /radix:2\|10/u);
+  assert.match(results[0]?.currentSignature ?? '', /<overloads:/u);
+  assert.match(results[0]?.currentSignature ?? '', /radix:2\|8\|10/u);
+  assert.equal(checkExitCode(results), 1);
+});
+
+test('overload recording requires an in-range selector for the chosen parameter contract', async () => {
+  const fixture = await createFixtureRepository();
+  await writeFile(path.join(fixture.dependency, 'index.d.ts'), OVERLOADED_DECLARATION);
+  await initEvidrift(fixture.root);
+  const base = {
+    repoRoot: fixture.root,
+    projectRoot: fixture.app,
+    packageName: '@evidrift/demo-contract',
+    symbol: 'parseConfig',
+    parameter: 'options',
+    claim: 'An overload must be selected explicitly.',
+    affectedCode: { path: 'app/src/index.ts', line: 2 },
+  } as const;
+
+  await assert.rejects(recordEvidence(base), /has 3 overloads.*--overload <1-3>.*Candidates:/u);
+  await assert.rejects(
+    recordEvidence({ ...base, overload: 4 }),
+    /Overload selector 4 is out of range.*expected 1-3/u,
+  );
+
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    [
+      'export declare function parseConfig(input: string): string;',
+      'export declare function parseConfig(input: number, options: object): number;',
+      '',
+    ].join('\n'),
+  );
+  await assert.rejects(
+    recordEvidence({ ...base, overload: 1 }),
+    /Parameter options was not found on parseConfig/u,
+  );
+});
+
+test('overload sets are resource-bounded before candidate rendering', async () => {
+  const fixture = await createFixtureRepository();
+  const declarations = Array.from(
+    { length: 65 },
+    (_, index) =>
+      `export declare function parseConfig(input: ${JSON.stringify(`case-${index}`)}): ${index};`,
+  );
+  await writeFile(path.join(fixture.dependency, 'index.d.ts'), `${declarations.join('\n')}\n`);
+  await initEvidrift(fixture.root);
+
+  await assert.rejects(
+    recordEvidence({
+      repoRoot: fixture.root,
+      projectRoot: fixture.app,
+      packageName: '@evidrift/demo-contract',
+      symbol: 'parseConfig',
+      overload: 1,
+      claim: 'Oversized overload sets are refused.',
+      affectedCode: { path: 'app/src/index.ts', line: 2 },
+    }),
+    /more than 64 call signatures/u,
+  );
 });
 
 test('distinct string-literal whitespace produces a deterministic mismatch', async () => {

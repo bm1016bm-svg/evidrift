@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title description">
+  <title id="title">Evidrift catches deterministic TypeScript signature drift</title>
+  <desc id="description">Animated terminal showing a passing dependency contract followed by a failing contract after the parameter becomes required.</desc>
+  <style>
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .muted { fill: #8b949e; }
+    .text { fill: #e6edf3; }
+    .pass { fill: #3fb950; font-weight: 700; }
+    .fail { fill: #f85149; font-weight: 700; }
+    .expected { fill: #d2a8ff; }
+    .current { fill: #ffa657; }
+  </style>
+  <rect width="1200" height="520" rx="22" fill="#0d1117" />
+  <rect x="1" y="1" width="1198" height="518" rx="21" fill="none" stroke="#30363d" stroke-width="2" />
+  <circle cx="38" cy="34" r="8" fill="#f85149" />
+  <circle cx="64" cy="34" r="8" fill="#d29922" />
+  <circle cx="90" cy="34" r="8" fill="#3fb950" />
+  <text x="600" y="42" text-anchor="middle" class="mono muted" font-size="18">evidrift demo — no account, no cloud, no LLM judge</text>
+  <line x1="0" y1="64" x2="1200" y2="64" stroke="#30363d" />
+
+  <text x="42" y="108" class="mono text" font-size="23">$ npx --yes evidrift demo</text>
+
+  <g>
+    <animate attributeName="opacity" values="1;1;0;0;1" keyTimes="0;0.38;0.46;0.92;1" dur="12s" repeatCount="indefinite" />
+    <text x="42" y="158" class="mono muted" font-size="20">2/3 Baseline contract</text>
+    <text x="42" y="198" class="mono pass" font-size="26">PASS sha256:01c766cf…</text>
+    <text x="42" y="238" class="mono text" font-size="20">Deterministic TypeScript signature matches.</text>
+    <text x="42" y="286" class="mono expected" font-size="20">Expected  parseConfig(input:string,options?:ParseOptions):ParseResult</text>
+    <text x="42" y="326" class="mono pass" font-size="20">Current   parseConfig(input:string,options?:ParseOptions):ParseResult</text>
+    <text x="42" y="384" class="mono muted" font-size="19">Summary: 1 pass, 0 warning, 0 fail</text>
+  </g>
+
+  <g opacity="0">
+    <animate attributeName="opacity" values="0;0;1;1;0" keyTimes="0;0.42;0.5;0.92;1" dur="12s" repeatCount="indefinite" />
+    <text x="42" y="158" class="mono muted" font-size="20">3/3 Dependency signature changed on purpose</text>
+    <text x="42" y="198" class="mono fail" font-size="26">FAIL contract_mismatch sha256:01c766cf…</text>
+    <text x="42" y="238" class="mono text" font-size="20">Previously recorded TypeScript signature was not found.</text>
+    <text x="42" y="286" class="mono expected" font-size="20">Expected  parseConfig(input:string,options?:ParseOptions):ParseResult</text>
+    <text x="42" y="326" class="mono current" font-size="20">Current   parseConfig(input:string,options:ParseOptions):ParseResult</text>
+    <text x="42" y="374" class="mono text" font-size="18">Action: Review the dependency change, then intentionally record new evidence.</text>
+    <text x="42" y="424" class="mono fail" font-size="19">Summary: 0 pass, 0 warning, 1 fail</text>
+  </g>
+
+  <text x="42" y="484" class="mono muted" font-size="18">Code compiles. APIs drift. Evidrift checks the assumption again.</text>
+</svg>

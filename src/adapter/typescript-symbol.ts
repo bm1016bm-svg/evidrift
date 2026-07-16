@@ -14,6 +14,9 @@ const MAX_PACKAGE_JSON_BYTES = 1024 * 1024;
 const MAX_DECLARATION_BYTES = 2 * 1024 * 1024;
 const MAX_DECLARATION_FILES = 256;
 const MAX_TOTAL_DECLARATION_BYTES = 16 * 1024 * 1024;
+const MAX_CALL_SIGNATURES = 64;
+const MAX_SIGNATURE_PREVIEW_CHARACTERS = 512;
+const SHA256_ID = /^sha256:[a-f0-9]{64}$/;
 const SIGNATURE_PUNCTUATION = new Set([',', ':', '?', '(', ')', '<', '>', '|', '&']);
 
 export class AdapterError extends Error {
@@ -307,7 +310,7 @@ function createBoundedCompilerHost(
       if (allowed === undefined) {
         if (escapedReadObserved) {
           throw new AdapterError(
-            'A transitive TypeScript source resolves outside the repository; v0.1 refuses it.',
+            'A transitive TypeScript source resolves outside the repository; Evidrift refuses it.',
           );
         }
         throw new AdapterError(`${description} could not be resolved to a readable source file.`);
@@ -337,14 +340,14 @@ function createBoundedCompilerHost(
           !isInside(repoRoot, path.resolve(path.dirname(source.path), imported.fileName))
         ) {
           throw new AdapterError(
-            'A transitive TypeScript source resolves outside the repository; v0.1 refuses it.',
+            'A transitive TypeScript source resolves outside the repository; Evidrift refuses it.',
           );
         }
         const resolution = ts.resolveModuleName(imported.fileName, source.path, options, host);
         if (resolution.resolvedModule === undefined) {
           if (escapedReadObserved) {
             throw new AdapterError(
-              'A transitive TypeScript source resolves outside the repository; v0.1 refuses it.',
+              'A transitive TypeScript source resolves outside the repository; Evidrift refuses it.',
             );
           }
           throw new AdapterError(
@@ -374,7 +377,7 @@ function createBoundedCompilerHost(
         if (resolution.resolvedTypeReferenceDirective?.resolvedFileName === undefined) {
           if (escapedReadObserved) {
             throw new AdapterError(
-              'A transitive TypeScript source resolves outside the repository; v0.1 refuses it.',
+              'A transitive TypeScript source resolves outside the repository; Evidrift refuses it.',
             );
           }
           throw new AdapterError(
@@ -395,7 +398,7 @@ function createBoundedCompilerHost(
     assertNoEscapedRead: () => {
       if (escapedReadObserved) {
         throw new AdapterError(
-          'A transitive TypeScript source resolves outside the repository; v0.1 refuses it.',
+          'A transitive TypeScript source resolves outside the repository; Evidrift refuses it.',
         );
       }
     },
@@ -408,6 +411,36 @@ export interface ResolveTypeScriptSymbolInput {
   packageName: string;
   symbol: string;
   parameter?: string;
+  overload?: number;
+  expectedSignatureHash?: string;
+}
+
+interface RenderedCallSignature {
+  signature: string;
+  signatureHash: string;
+  parameterPresent: boolean;
+}
+
+function signaturePreview(value: string): string {
+  return value.length <= MAX_SIGNATURE_PREVIEW_CHARACTERS
+    ? value
+    : `${value.slice(0, MAX_SIGNATURE_PREVIEW_CHARACTERS)}…`;
+}
+
+function renderOverloadSet(signatures: readonly RenderedCallSignature[]): string {
+  return `<overloads: ${signatures
+    .map(
+      (signature, index) =>
+        `[${index + 1}] ${signature.signatureHash} ${signaturePreview(signature.signature)}`,
+    )
+    .join(' | ')}>`;
+}
+
+function overloadSelectionMessage(
+  symbol: string,
+  signatures: readonly RenderedCallSignature[],
+): string {
+  return `Symbol ${symbol} has ${signatures.length} overloads. Rerun with --overload <1-${signatures.length}>. Candidates: ${renderOverloadSet(signatures)}`;
 }
 
 export async function resolveTypeScriptSymbol(
@@ -422,13 +455,25 @@ export async function resolveTypeScriptSymbol(
   if (input.parameter !== undefined && !IDENTIFIER.test(input.parameter)) {
     throw new AdapterError('Parameter must be a TypeScript identifier.');
   }
+  if (
+    input.overload !== undefined &&
+    (!Number.isSafeInteger(input.overload) || input.overload < 1)
+  ) {
+    throw new AdapterError('Overload selector must be a positive safe integer.');
+  }
+  if (input.expectedSignatureHash !== undefined && !SHA256_ID.test(input.expectedSignatureHash)) {
+    throw new AdapterError('Expected signature hash must be a full sha256 hash.');
+  }
+  if (input.overload !== undefined && input.expectedSignatureHash !== undefined) {
+    throw new AdapterError('Overload index and expected signature hash cannot be combined.');
+  }
 
   const packageJsonPath = await realpath(
     await findPackageJson(input.projectRoot, input.packageName),
   );
   const packageRoot = path.dirname(packageJsonPath);
   if (!isInside(input.repoRoot, packageRoot)) {
-    throw new AdapterError('Resolved dependency is outside the repository; v0.1 refuses it.');
+    throw new AdapterError('Resolved dependency is outside the repository; Evidrift refuses it.');
   }
 
   const packageJson = parsePackageJson(
@@ -514,27 +559,75 @@ export async function resolveTypeScriptSymbol(
     checker.getTypeOfSymbolAtLocation(target, declaration),
     ts.SignatureKind.Call,
   );
-  if (signatures.length !== 1 || !signatures[0]) {
+  if (signatures.length === 0) {
     throw new ContractMismatchError(
-      'v0.1 supports symbols with exactly one call signature.',
-      `<${signatures.length} call signatures for ${input.symbol}>`,
+      `Exported symbol ${input.symbol} has no callable signatures.`,
+      `<0 call signatures for ${input.symbol}>`,
     );
   }
-  const signature = signatures[0];
-  const parameterPresent =
-    input.parameter === undefined ||
-    signature.getParameters().some((parameter) => parameter.name === input.parameter);
+  if (signatures.length > MAX_CALL_SIGNATURES) {
+    throw new AdapterError(
+      `Symbol ${input.symbol} exposes more than ${MAX_CALL_SIGNATURES} call signatures.`,
+    );
+  }
 
-  const rendered = checker.signatureToString(
-    signature,
-    declaration,
-    ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope,
-    ts.SignatureKind.Call,
-  );
-  const normalized = normalizeSignature(`${input.symbol}${rendered}`);
+  const renderedSignatures = signatures.map((signature): RenderedCallSignature => {
+    const rendered = checker.signatureToString(
+      signature,
+      declaration,
+      ts.TypeFormatFlags.NoTruncation | ts.TypeFormatFlags.UseAliasDefinedOutsideCurrentScope,
+      ts.SignatureKind.Call,
+    );
+    const normalized = normalizeSignature(`${input.symbol}${rendered}`);
+    return {
+      signature: normalized,
+      signatureHash: `sha256:${sha256(normalized)}`,
+      parameterPresent:
+        input.parameter === undefined ||
+        signature.getParameters().some((parameter) => parameter.name === input.parameter),
+    };
+  });
   // TypeScript may defer module resolution until the checker renders a type.
   // Inspect the escape flag only after all evidence-producing checker work.
   boundedHost.assertNoEscapedRead();
+
+  let selected: RenderedCallSignature | undefined;
+  if (input.expectedSignatureHash !== undefined) {
+    selected = renderedSignatures.find(
+      (signature) => signature.signatureHash === input.expectedSignatureHash,
+    );
+    if (selected === undefined) {
+      throw new ContractMismatchError(
+        signatures.length === 1
+          ? 'Previously recorded TypeScript signature was not found.'
+          : 'Previously selected TypeScript overload was not found in the current overload set.',
+        signatures.length === 1
+          ? (renderedSignatures[0]?.signature ?? `<0 call signatures for ${input.symbol}>`)
+          : renderOverloadSet(renderedSignatures),
+      );
+    }
+  } else if (signatures.length > 1) {
+    if (input.overload === undefined) {
+      throw new AdapterError(overloadSelectionMessage(input.symbol, renderedSignatures));
+    }
+    selected = renderedSignatures[input.overload - 1];
+    if (selected === undefined) {
+      throw new AdapterError(
+        `Overload selector ${input.overload} is out of range for ${input.symbol}; expected 1-${signatures.length}.`,
+      );
+    }
+  } else {
+    if (input.overload !== undefined && input.overload !== 1) {
+      throw new AdapterError(
+        `Overload selector ${input.overload} is out of range for ${input.symbol}; expected 1.`,
+      );
+    }
+    selected = renderedSignatures[0];
+  }
+
+  if (selected === undefined) {
+    throw new AdapterError(`TypeScript could not select a call signature for ${input.symbol}.`);
+  }
 
   return {
     packageName: input.packageName,
@@ -542,8 +635,8 @@ export async function resolveTypeScriptSymbol(
     resolvedPath: relativeToRepo(input.repoRoot, declarationPath),
     symbol: input.symbol,
     ...(input.parameter === undefined ? {} : { parameter: input.parameter }),
-    ...(input.parameter === undefined ? {} : { parameterPresent }),
-    signature: normalized,
-    signatureHash: `sha256:${sha256(normalized)}`,
+    ...(input.parameter === undefined ? {} : { parameterPresent: selected.parameterPresent }),
+    signature: selected.signature,
+    signatureHash: selected.signatureHash,
   };
 }

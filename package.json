@@ -1,7 +1,8 @@
 {
   "name": "evidrift",
-  "version": "0.1.0",
-  "description": "Evidence lockfile for AI-generated code. Revalidate TypeScript dependency contracts in CI via CLI or MCP.",
+  "version": "0.2.0",
+  "mcpName": "io.github.bm1016bm-svg/evidrift",
+  "description": "The lockfile for AI assumptions. Record TypeScript dependency contracts through MCP and revalidate them in CI when APIs drift.",
   "keywords": [
     "ai",
     "ai-coding-agents",
@@ -10,9 +11,12 @@
     "cli",
     "dependency-contracts",
     "developer-tools",
+    "github-actions",
     "mcp",
+    "mcp-server",
     "model-context-protocol",
     "provenance",
+    "static-analysis",
     "typescript"
   ],
   "homepage": "https://github.com/bm1016bm-svg/evidrift#readme",
@@ -59,6 +63,7 @@
     "prebuild": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
     "prepublishOnly": "npm run verify",
     "prepack": "npm run build",
+    "release:check": "node scripts/verify-release.mjs",
     "smoke": "node dist/tests/smoke.js",
     "test": "npm run build && node --test \"dist/tests/**/*.test.js\" && npm run smoke",
     "typecheck": "tsc --noEmit -p tsconfig.json",

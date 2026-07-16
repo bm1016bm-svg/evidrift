@@ -43,9 +43,11 @@ async function fixtureFor(t: TestContext): Promise<FixtureRepository> {
 
 function recordArguments(
   fixture: FixtureRepository,
-  overrides: Partial<Record<'package' | 'symbol' | 'parameter' | 'code' | 'claim', string>> = {},
+  overrides: Partial<
+    Record<'package' | 'symbol' | 'parameter' | 'overload' | 'code' | 'claim', string>
+  > = {},
 ): string[] {
-  return [
+  const arguments_ = [
     'record',
     '--root',
     fixture.root,
@@ -62,6 +64,10 @@ function recordArguments(
     '--code',
     overrides.code ?? 'app/src/index.ts:2',
   ];
+  if (overrides.overload !== undefined) {
+    arguments_.push('--overload', overrides.overload);
+  }
+  return arguments_;
 }
 
 function receiptIdFrom(output: string): string {
@@ -275,6 +281,14 @@ test('UAT: URL, missing package, missing parameter, path escape, and missing cod
     /Parameter missingParameter was not found on parseConfig/,
   );
   assert.match(
+    runCli(recordArguments(fixture, { overload: '0' }), 2).stderr,
+    /Option --overload must be a positive integer/,
+  );
+  assert.match(
+    runCli(recordArguments(fixture, { overload: '9007199254740992' }), 2).stderr,
+    /Option --overload must be a positive safe integer/,
+  );
+  assert.match(
     runCli(recordArguments(fixture, { code: '../outside.ts' }), 2).stderr,
     /Affected code must stay inside the repository/,
   );
@@ -389,7 +403,7 @@ test('UAT: TypeScript source count and byte budgets fail with readable errors', 
   );
 });
 
-test('UAT: a removed symbol or overload set is a deterministic blocking mismatch', async (t) => {
+test('UAT: a removed symbol or missing recorded signature is a deterministic mismatch', async (t) => {
   const removed = await initializeAndRecord(t);
   await writeFile(
     path.join(removed.fixture.dependency, 'index.d.ts'),
@@ -410,11 +424,11 @@ test('UAT: a removed symbol or overload set is a deterministic blocking mismatch
     ].join('\n'),
   );
   const overloadResult = runCli(['check', '--root', overloaded.fixture.root], 1).stdout;
-  assert.match(overloadResult, /v0\.1 supports symbols with exactly one call signature/);
-  assert.match(overloadResult, /<2 call signatures for parseConfig>/);
+  assert.match(overloadResult, /Previously selected TypeScript overload was not found/);
+  assert.match(overloadResult, /<overloads:/);
 });
 
-test('UAT: boss-fight overloads with a cross-file type alias fail clearly without a Receipt', async (t) => {
+test('UAT: boss-fight selects one overload, survives reordering, and detects its drift', async (t) => {
   const fixture = await fixtureFor(t);
   runCli(['init', '--root', fixture.root], 0);
   await writeFile(
@@ -435,16 +449,68 @@ test('UAT: boss-fight overloads with a cross-file type alias fail clearly withou
     2,
   );
   assert.equal(result.stdout, '');
+  assert.match(result.stderr, /^ERROR: Symbol bossFight has 3 overloads\./u);
+  assert.match(result.stderr, /--overload <1-3>/u);
+  assert.match(result.stderr, /\[1\].*input:string/u);
+  assert.match(result.stderr, /\[2\].*input:number/u);
+  assert.match(result.stderr, /\[3\].*input:Uint8Array/u);
+
   assert.match(
-    result.stderr,
-    /^ERROR: v0\.1 supports symbols with exactly one call signature\.\r?\n$/u,
+    runCli(
+      recordArguments(fixture, {
+        symbol: 'bossFight',
+        parameter: 'options',
+        overload: '4',
+        claim: 'Out-of-range overloads must be refused.',
+      }),
+      2,
+    ).stderr,
+    /Overload selector 4 is out of range for bossFight; expected 1-3/u,
   );
 
-  const lock = JSON.parse(
+  let lock = JSON.parse(
     await readFile(path.join(fixture.root, '.evidrift', 'evidence.lock'), 'utf8'),
   ) as EvidenceLock;
   assert.deepEqual(lock.receipts, []);
   assert.deepEqual(await readdir(path.join(fixture.root, '.evidrift', 'receipts')), []);
+
+  const recorded = runCli(
+    recordArguments(fixture, {
+      symbol: 'bossFight',
+      parameter: 'options',
+      overload: '2',
+      claim: 'bossFight numeric calls accept binary, octal, decimal, or hexadecimal radix.',
+    }),
+    0,
+  );
+  const receiptId = receiptIdFrom(recorded.stdout);
+  assert.match(recorded.stdout, /Expected signature: bossFight\(input:number/u);
+  assert.match(recorded.stdout, /radix:2\|8\|10\|16/u);
+  assert.match(runCli(['check', '--root', fixture.root], 0).stdout, /PASS/);
+
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    await readFile(path.join(bossFightExample, 'reordered.d.ts'), 'utf8'),
+  );
+  assert.match(
+    runCli(['check', '--root', fixture.root], 0).stdout,
+    new RegExp(`PASS ${receiptId}`),
+  );
+
+  await writeFile(
+    path.join(fixture.dependency, 'index.d.ts'),
+    await readFile(path.join(bossFightExample, 'drifted.d.ts'), 'utf8'),
+  );
+  const drift = runCli(['check', '--root', fixture.root], 1).stdout;
+  assert.match(drift, new RegExp(`FAIL contract_mismatch ${receiptId}`));
+  assert.match(drift, /Previously selected TypeScript overload was not found/u);
+  assert.match(drift, /Expected signature:.*radix:2\|8\|10\|16/u);
+  assert.match(drift, /Current signature: <overloads:.*radix:2\|8\|10/u);
+
+  lock = JSON.parse(
+    await readFile(path.join(fixture.root, '.evidrift', 'evidence.lock'), 'utf8'),
+  ) as EvidenceLock;
+  assert.deepEqual(lock.receipts, [receiptId]);
 });
 
 test('UAT: coordinated rehashing is internally valid and remains a documented Git-review boundary', async (t) => {

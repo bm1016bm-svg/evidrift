@@ -111,7 +111,7 @@ function parseEvidence(value: unknown): TypeScriptSymbolEvidence {
   ];
   assertExactKeys(record, expectedKeys, 'evidence');
   if (record.adapter !== 'typescript.symbol') {
-    throw new IntegrityError('Only the typescript.symbol adapter is valid in v0.1.');
+    throw new IntegrityError('Only the typescript.symbol adapter is valid in this release.');
   }
   if (typeof record.signatureHash !== 'string') {
     throw new IntegrityError('Evidence contains invalid field types.');
