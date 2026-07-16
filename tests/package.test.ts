@@ -112,6 +112,10 @@ test('release, npm, and official MCP Registry metadata stay version-aligned', as
   );
   assert.match(workflow, /id-token: write/u);
   assert.doesNotMatch(workflow, /NPM_TOKEN/u);
+  assert.match(workflow, /workflow_dispatch:/u);
+  assert.match(workflow, /RELEASE_TAG:/u);
+  assert.match(workflow, /\$\{RUNNER_TEMP\}\/mcp-validation\.json/u);
+  assert.doesNotMatch(workflow, /--output mcp-validation\.json/u);
   assert.match(workflow, /mcp-publisher_linux_amd64\.tar\.gz/u);
   for (const use of workflow.matchAll(/^\s*uses:\s*(\S+)$/gmu)) {
     assert.match(use[1] ?? '', /@[a-f0-9]{40}$/u, `Action is not pinned: ${use[1]}`);

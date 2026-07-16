@@ -4,14 +4,23 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing immutable release tag to retry
+        required: true
+        type: string
 
 permissions:
   contents: write
   id-token: write
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
   cancel-in-progress: false
+
+env:
+  RELEASE_TAG: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref_name }}
 
 jobs:
   publish:
@@ -19,10 +28,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - name: Check out tagged source
+      - name: Check out release source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.tag || github.ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -40,17 +50,20 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Verify release metadata
-        run: npm run release:check -- "${GITHUB_REF_NAME}"
+        run: npm run release:check -- "${RELEASE_TAG}"
 
       - name: Validate official MCP Registry metadata
         run: |
-          curl --fail --silent --show-error --request POST --header 'Content-Type: application/json' --data-binary @server.json https://registry.modelcontextprotocol.io/v0.1/validate --output mcp-validation.json
-          jq --exit-status '.valid == true and (.issues | length) == 0' mcp-validation.json
+          VALIDATION_FILE="${RUNNER_TEMP}/mcp-validation.json"
+          curl --fail --silent --show-error --request POST --header 'Content-Type: application/json' --data-binary @server.json https://registry.modelcontextprotocol.io/v0.1/validate --output "${VALIDATION_FILE}"
+          jq --exit-status '.valid == true and (.issues | length) == 0' "${VALIDATION_FILE}"
 
       - name: Require the tagged commit to be on main
         run: |
           git fetch origin main --no-tags
-          git merge-base --is-ancestor "${GITHUB_SHA}" origin/main
+          TAGGED_SHA="$(git rev-parse "${RELEASE_TAG}^{commit}")"
+          test "$(git rev-parse HEAD)" = "${TAGGED_SHA}"
+          git merge-base --is-ancestor "${TAGGED_SHA}" origin/main
 
       - name: Run the complete release gate
         run: npm run verify
@@ -58,7 +71,7 @@ jobs:
       - name: Inspect npm publication state
         id: npm-state
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           if npm view "evidrift@${VERSION}" version --registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
             echo 'exists=true' >> "${GITHUB_OUTPUT}"
           else
@@ -71,7 +84,7 @@ jobs:
 
       - name: Read npm version back
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           for attempt in {1..12}; do
             PUBLISHED="$(npm view "evidrift@${VERSION}" version --registry=https://registry.npmjs.org/ 2>/dev/null || true)"
             if [ "${PUBLISHED}" = "${VERSION}" ]; then
@@ -87,16 +100,16 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "${GITHUB_REF_NAME}" >/dev/null 2>&1; then
-            echo "GitHub Release ${GITHUB_REF_NAME} already exists"
+          if gh release view "${RELEASE_TAG}" >/dev/null 2>&1; then
+            echo "GitHub Release ${RELEASE_TAG} already exists"
           else
-            gh release create "${GITHUB_REF_NAME}" --verify-tag --generate-notes --title "Evidrift ${GITHUB_REF_NAME}"
+            gh release create "${RELEASE_TAG}" --verify-tag --generate-notes --title "Evidrift ${RELEASE_TAG}"
           fi
 
       - name: Inspect MCP Registry publication state
         id: mcp-state
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           URL="https://registry.modelcontextprotocol.io/v0.1/servers/io.github.bm1016bm-svg%2Fevidrift/versions/${VERSION}"
           if curl --fail --silent --show-error "${URL}" >/dev/null; then
             echo 'exists=true' >> "${GITHUB_OUTPUT}"
@@ -120,7 +133,7 @@ jobs:
 
       - name: Read MCP Registry version back
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
+          VERSION="${RELEASE_TAG#v}"
           URL="https://registry.modelcontextprotocol.io/v0.1/servers/io.github.bm1016bm-svg%2Fevidrift/versions/${VERSION}"
           curl --fail --silent --show-error "${URL}" --output mcp-readback.json
           jq --exit-status --arg name 'io.github.bm1016bm-svg/evidrift' --arg version "${VERSION}" '.server.name == $name and .server.version == $version and .server.packages[0].identifier == "evidrift" and .server.packages[0].version == $version' mcp-readback.json
