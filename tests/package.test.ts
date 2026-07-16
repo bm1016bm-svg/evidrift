@@ -11,10 +11,12 @@ test('npm tarball contains the executable surface and excludes source, tests, an
   const manifest = JSON.parse(await readFile(path.join(process.cwd(), 'package.json'), 'utf8')) as {
     private?: boolean;
     version?: string;
+    mcpName?: string;
     bin?: Record<string, string>;
   };
   assert.notEqual(manifest.private, true, 'A private package cannot back `npx evidrift`.');
   assert.equal(manifest.version, EVIDRIFT_VERSION);
+  assert.equal(manifest.mcpName, 'io.github.bm1016bm-svg/evidrift');
   assert.equal(manifest.bin?.evidrift, 'dist/src/cli.js');
   assert.equal(manifest.bin?.['evidrift-mcp'], 'dist/src/mcp.js');
 
@@ -67,5 +69,51 @@ test('npm tarball contains the executable surface and excludes source, tests, an
       false,
       `npm tarball unexpectedly contains ${forbidden}`,
     );
+  }
+});
+
+test('release, npm, and official MCP Registry metadata stay version-aligned', async () => {
+  const manifest = JSON.parse(await readFile(path.join(process.cwd(), 'package.json'), 'utf8')) as {
+    name?: string;
+    version?: string;
+    mcpName?: string;
+  };
+  const lock = JSON.parse(
+    await readFile(path.join(process.cwd(), 'package-lock.json'), 'utf8'),
+  ) as {
+    version?: string;
+    packages?: Record<string, { version?: string }>;
+  };
+  const server = JSON.parse(await readFile(path.join(process.cwd(), 'server.json'), 'utf8')) as {
+    name?: string;
+    version?: string;
+    packages?: Array<{
+      identifier?: string;
+      version?: string;
+      transport?: { type?: string };
+      packageArguments?: Array<{ type?: string; value?: string }>;
+    }>;
+  };
+  const registryPackage = server.packages?.[0];
+
+  assert.equal(manifest.version, EVIDRIFT_VERSION);
+  assert.equal(lock.version, EVIDRIFT_VERSION);
+  assert.equal(lock.packages?.['']?.version, EVIDRIFT_VERSION);
+  assert.equal(server.version, EVIDRIFT_VERSION);
+  assert.equal(server.name, manifest.mcpName);
+  assert.equal(registryPackage?.identifier, manifest.name);
+  assert.equal(registryPackage?.version, EVIDRIFT_VERSION);
+  assert.equal(registryPackage?.transport?.type, 'stdio');
+  assert.deepEqual(registryPackage?.packageArguments, [{ type: 'positional', value: 'mcp' }]);
+
+  const workflow = await readFile(
+    path.join(process.cwd(), '.github', 'workflows', 'release.yml'),
+    'utf8',
+  );
+  assert.match(workflow, /id-token: write/u);
+  assert.doesNotMatch(workflow, /NPM_TOKEN/u);
+  assert.match(workflow, /mcp-publisher_linux_amd64\.tar\.gz/u);
+  for (const use of workflow.matchAll(/^\s*uses:\s*(\S+)$/gmu)) {
+    assert.match(use[1] ?? '', /@[a-f0-9]{40}$/u, `Action is not pinned: ${use[1]}`);
   }
 });

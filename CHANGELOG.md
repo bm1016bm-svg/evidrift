@@ -4,11 +4,17 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## [Unreleased]
 
+No changes yet.
+
+## [0.2.0] - 2026-07-16
+
 ### Added
 
 - Explicit 1-based `--overload` and MCP `overload` selectors for overloaded TypeScript symbols.
 - Boss-fight acceptance coverage for cross-file aliases, selection errors, reordering, and selected-overload drift.
 - A 64-call-signature resource bound before overload candidate rendering.
+- A package-level `evidrift mcp` entry point and official MCP Registry metadata.
+- A tag-gated GitHub/npm/MCP release workflow with version alignment and registry readback.
 
 ### Changed
 

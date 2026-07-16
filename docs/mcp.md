@@ -1,14 +1,13 @@
 # MCP setup
 
-Build Evidrift and initialize the target repository first:
+Install Evidrift in the target repository and initialize it first:
 
 ```bash
-npm ci
-npm run build
-node /absolute/path/to/evidrift/dist/src/cli.js init --root /absolute/path/to/your/repo
+npm install --save-dev evidrift
+npx evidrift init
 ```
 
-Use absolute paths in agent configuration. The server uses its working directory as the repository root and exposes only `evidrift_record`.
+The server uses its working directory as the repository root and exposes only `evidrift_record`. The package-level `evidrift mcp` command and the standalone `evidrift-mcp` bin start the same STDIO server.
 
 ## Codex
 
@@ -16,15 +15,15 @@ Official Codex configuration supports `command`, `args`, and `cwd` for STDIO ser
 
 ```toml
 [mcp_servers.evidrift]
-command = "node"
-args = ["/absolute/path/to/evidrift/dist/src/mcp.js"]
+command = "npx"
+args = ["--yes", "evidrift", "mcp"]
 cwd = "/absolute/path/to/your/repo"
 ```
 
 Equivalent CLI command, run from the target repository:
 
 ```bash
-codex mcp add evidrift -- node /absolute/path/to/evidrift/dist/src/mcp.js
+codex mcp add evidrift -- npx --yes evidrift mcp
 ```
 
 Source: [OpenAI Codex configuration reference](https://developers.openai.com/codex/config-reference/).
@@ -34,7 +33,7 @@ Source: [OpenAI Codex configuration reference](https://developers.openai.com/cod
 Register a project-scoped local STDIO server:
 
 ```bash
-claude mcp add --scope project evidrift -- node /absolute/path/to/evidrift/dist/src/mcp.js
+claude mcp add --scope project evidrift -- npx --yes evidrift mcp
 ```
 
 The generated `.mcp.json` has this shape:
@@ -43,8 +42,8 @@ The generated `.mcp.json` has this shape:
 {
   "mcpServers": {
     "evidrift": {
-      "command": "node",
-      "args": ["/absolute/path/to/evidrift/dist/src/mcp.js"],
+      "command": "npx",
+      "args": ["--yes", "evidrift", "mcp"],
       "env": {}
     }
   }
@@ -61,14 +60,20 @@ Create `.cursor/mcp.json` in the target repository:
 {
   "mcpServers": {
     "evidrift": {
-      "command": "node",
-      "args": ["/absolute/path/to/evidrift/dist/src/mcp.js"]
+      "command": "npx",
+      "args": ["--yes", "evidrift", "mcp"]
     }
   }
 }
 ```
 
 Open the target repository as the Cursor workspace. Source: [Cursor MCP documentation](https://docs.cursor.com/context/model-context-protocol).
+
+On Windows, use `npx.cmd` if the MCP client does not resolve PowerShell command shims. For local contributor builds, replace the npm command with `node /absolute/path/to/evidrift/dist/src/mcp.js`.
+
+## Official MCP Registry
+
+`server.json` describes `io.github.bm1016bm-svg/evidrift` as an npm-backed local STDIO server. Its fixed package argument is `mcp`, so registry clients launch `npx evidrift mcp` instead of accidentally entering the human CLI. The Git tag, npm package, server metadata, and registry entry must use the same version.
 
 ## Tool contract
 

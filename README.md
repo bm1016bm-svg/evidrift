@@ -3,13 +3,15 @@
 [![CI](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml/badge.svg)](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/evidrift.svg)](https://www.npmjs.com/package/evidrift)
 
-> **Code compiles. Reality drifts. Evidrift is the lockfile for AI assumptions.**
+> **Code compiles. APIs drift. Evidrift is the lockfile for AI assumptions.**
 
 Coding agents can write against a dependency contract that changes tomorrow. Evidrift records the exact TypeScript symbol contract as a content-addressed Receipt, then makes CI recompute it before merge.
 
 Local-first CLI. STDIO MCP server. No account, no cloud backend, no LLM judge, and no package code execution.
 
 ![Evidrift — AI dependency lockfile](docs/assets/evidrift-hero.png)
+
+[![Evidrift demo: a dependency contract passes, then fails after its TypeScript signature changes](docs/assets/evidrift-demo.svg)](#quick-start)
 
 ## Installation
 
@@ -138,9 +140,12 @@ evidrift check
 evidrift diff
 evidrift explain <receipt-id>
 evidrift demo
+evidrift mcp
 ```
 
 All commands accept `--root <repo>`. `record` requires an initialized `.evidrift/evidence.lock`.
+
+`evidrift mcp` starts the same local STDIO server exposed by the `evidrift-mcp` bin. It exists so package registries and MCP clients can launch Evidrift deterministically from the main npm package.
 
 ## Trust Boundary
 

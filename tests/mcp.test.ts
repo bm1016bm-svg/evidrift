@@ -21,13 +21,13 @@ function isTextContent(value: unknown): value is { type: 'text'; text: string } 
   );
 }
 
-test('STDIO MCP records through the same core and never declares verification', async () => {
+test('package-level CLI MCP entrypoint records through the same core and never declares verification', async () => {
   const fixture = await createFixtureRepository();
   await initEvidrift(fixture.root);
   const client = new Client({ name: 'evidrift-test-client', version: '1.0.0' });
   const transport = new StdioClientTransport({
     command: process.execPath,
-    args: [path.resolve(process.cwd(), 'dist', 'src', 'mcp.js')],
+    args: [path.resolve(process.cwd(), 'dist', 'src', 'cli.js'), 'mcp'],
     cwd: fixture.root,
     stderr: 'pipe',
   });

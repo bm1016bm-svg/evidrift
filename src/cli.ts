@@ -12,6 +12,7 @@ import {
   resolveCliProjectRoot,
 } from './core.js';
 import { runSignatureDriftDemo } from './demo.js';
+import { runMcpServer } from './mcp.js';
 import { assertSafeRelativePath } from './paths.js';
 import { renderCheck, renderDemo, renderExplain, renderRecord, renderResult } from './output.js';
 import { interactiveTerminalEnabled, withTerminalProgress } from './terminal.js';
@@ -28,6 +29,7 @@ Usage:
   evidrift diff [--root <repo>]
   evidrift explain <receipt-id> [--root <repo>]
   evidrift demo [--root <directory>]
+  evidrift mcp
 
 Exit codes for check: 0 match/warning, 1 contract mismatch, 2 evidence integrity error.`;
 
@@ -238,6 +240,14 @@ export async function runCli(argv: string[]): Promise<number> {
         (report) => runSignatureDriftDemo(repoRoot, report),
       );
       console.log(renderDemo(result, renderOptions));
+      return 0;
+    }
+    case 'mcp': {
+      ensureOptions(parsed, []);
+      if (parsed.positionals.length > 0) {
+        throw new Error('evidrift mcp does not accept arguments.');
+      }
+      await runMcpServer();
       return 0;
     }
     default:

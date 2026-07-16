@@ -14,15 +14,17 @@ npm run uat
 
 `npm run verify` runs formatting, lint, typecheck, all automated tests, the end-to-end smoke test, and a check of this repository's committed Receipt. `npm run uat` isolates the user-facing acceptance cases.
 
-Local v0.2 overload checkpoint on 2026-07-15:
+Local v0.2 release-candidate checkpoint on 2026-07-16:
 
 - Platform: Windows, Node.js `v24.13.0`, npm `11.6.2`.
-- Automated result: 42 tests passed, 0 failed, 0 skipped.
+- Automated result: 43 tests passed, 0 failed, 0 skipped.
 - Isolated UAT result: 16 tests passed, 0 failed, 0 skipped; smoke passed after the same run.
 - Smoke result: baseline `PASS`, changed signature `FAIL`.
-- v0.2 packed-install result: a fresh temporary consumer installed the tarball, returned `0.2.0`, exposed `--overload <number>` in `--help`, and contained the `evidrift-mcp` executable.
+- v0.2 packed-install result: a fresh temporary consumer installed the tarball, returned `0.2.0`, exposed `--overload <number>` and `evidrift mcp` in `--help`, and completed a real MCP handshake through the installed CLI.
 - v0.2 local-tarball npx result: a separate empty directory ran `evidrift --version` through `npx --yes --package <local-tarball>` and returned `0.2.0`.
-- v0.2 local pack result: 55 files, a 42,574-byte tarball, and 184,979 unpacked bytes. This is a local release-candidate artifact, not a registry publication.
+- MCP entrypoint result: a real STDIO MCP client connected through `evidrift mcp`, recorded evidence through the shared core, and received no stored verification claim.
+- MCP Registry validation result: the official `/v0.1/validate` endpoint returned `valid: true` with no issues for `server.json`.
+- v0.2 local pack result: 55 files, a 42,845-byte tarball, and 186,122 unpacked bytes. This is a local release-candidate artifact, not a registry publication.
 - Registry result: the official npm registry returned `evidrift@0.1.0` with the `latest` tag, SHA-1 `a215f50a8f7cb29c23122a2db6d9bdfcd24b74e9`, and the expected SHA-512 integrity on 2026-07-15.
 - v0.1 publish result: the public npm package contains 55 files, a 40,984-byte tarball, and 176,248 unpacked bytes. The authenticated dry-run and final registry artifact reported the same SHA-1.
 - Public npx result: a clean consumer outside this repository ran `npx --yes evidrift init` and `npx --yes evidrift demo` from a fresh cache; initialization created the lock and the demo reproduced deterministic PASS-to-FAIL drift.
