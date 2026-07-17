@@ -19,7 +19,10 @@ import { interactiveTerminalEnabled, withTerminalProgress } from './terminal.js'
 import { escapeOutputText } from './text.js';
 import { EVIDRIFT_VERSION, type AffectedCode } from './types.js';
 
-const HELP = `Evidrift ${EVIDRIFT_VERSION} - the lockfile for AI assumptions
+const HELP = `Evidrift ${EVIDRIFT_VERSION} - catch API drift in AI-generated code
+
+Try it in 10 seconds (nothing to install):
+  npx --yes evidrift@latest demo
 
 Usage:
   evidrift init [--root <repo>]
@@ -134,7 +137,7 @@ export async function runCli(argv: string[]): Promise<number> {
   }
   if (parsed.help || parsed.command === undefined) {
     console.log(HELP);
-    return parsed.help ? 0 : 2;
+    return 0;
   }
 
   const repoRoot = path.resolve(option(parsed, 'root') ?? process.cwd());
@@ -146,9 +149,18 @@ export async function runCli(argv: string[]): Promise<number> {
       }
       const created = await initEvidrift(repoRoot);
       console.log(
-        created
-          ? 'Initialized .evidrift/evidence.lock and .evidrift/receipts/.'
-          : 'Evidrift already initialized.',
+        [
+          created
+            ? 'Initialized .evidrift/evidence.lock and .evidrift/receipts/.'
+            : 'Evidrift already initialized.',
+          '',
+          'Next:',
+          '  1. Connect your coding agent: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/mcp.md',
+          '  2. Let the agent record an assumption through MCP.',
+          '  3. Commit .evidrift/ and run `npx evidrift check` in CI.',
+          '',
+          'Want to see the failure first? Run `npx --yes evidrift@latest demo`.',
+        ].join('\n'),
       );
       return 0;
     }

@@ -4,8 +4,9 @@
 
 ## Try it
 
-- Demo: `npx --yes evidrift demo`
-- Initialize a repository: `npx --yes evidrift init`
+- Demo: `npx --yes evidrift@latest demo`
+- Initialize a repository: `npx --yes evidrift@latest init`
+- Real CLI demo animation: https://bm1016bm-svg.github.io/evidrift/assets/evidrift-demo.gif
 - npm: https://www.npmjs.com/package/evidrift
 - Source: https://github.com/bm1016bm-svg/evidrift
 

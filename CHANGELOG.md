@@ -12,11 +12,15 @@ No changes yet.
 
 - A static GitHub Pages discovery site with canonical metadata, social previews, structured software facts, `robots.txt`, `sitemap.xml`, and an agent-readable `llms.txt`.
 - Plain-language FAQ answers for TypeScript API drift, OpenAPI contract drift, contract testing, coding-agent support, and Evidrift's trust boundary.
+- A 1200×675 animated demo rendered from a captured, deterministic CLI PASS-to-FAIL transcript.
+- Automated first-visit checks for the README demo, website CTA, captured transcript, and lightweight GIF.
 
 ### Changed
 
 - GitHub, npm, README, and MCP descriptions now lead with the concrete TypeScript API and OpenAPI drift use case.
 - npm search keywords now include API drift, contract testing, evidence lockfiles, OpenAPI drift, and TypeScript MCP.
+- README and GitHub Pages now lead with the zero-install demo before repository setup.
+- Running `evidrift` without arguments exits successfully with a copy-pasteable demo command; `evidrift init` prints concrete next steps.
 - Package, CLI, MCP Registry, and release metadata now align on `0.3.1`.
 
 ### Not included

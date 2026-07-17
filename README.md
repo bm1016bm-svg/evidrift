@@ -12,45 +12,37 @@ Local-first CLI. STDIO MCP server. No account, no cloud backend, no LLM judge, a
 
 It deterministically catches selected TypeScript overload and parameter drift, repository-local OpenAPI or JSON Schema value drift through RFC 6901 JSON Pointer, and hand-edited or forged Receipt content.
 
-![Evidrift — AI dependency lockfile](docs/assets/evidrift-hero.png)
+![Evidrift — AI dependency lockfile](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-hero.png)
 
-[![Evidrift demo: a dependency contract passes, then fails after its TypeScript signature changes](docs/assets/evidrift-demo.svg)](#quick-start)
+[![Real Evidrift CLI demo: a dependency contract passes, its TypeScript signature changes, and Evidrift catches the drift before merge](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-demo.gif)](#quick-start--try-it-in-10-seconds)
 
-## Installation
+The animation is rendered from a [captured CLI transcript](https://github.com/bm1016bm-svg/evidrift/blob/main/docs/assets/evidrift-demo-transcript.txt). The PASS, changed signatures, affected file, and deterministic FAIL come from an actual local `evidrift demo` run; only the scene headings are editorial.
 
-Requires Node.js 22 or newer. Run Evidrift directly from npm:
+## Quick Start — Try It in 10 Seconds
+
+Requires Node.js 22 or newer. Nothing to install globally:
 
 ```bash
-npx --yes evidrift init
+npx --yes evidrift@latest demo
 ```
 
-That command initializes the current repository. No global install, Evidrift account, API key, or cloud backend is required.
+The command creates a disposable local fixture, records the optional `options` parameter on `parseConfig`, checks it successfully, changes the fixture so `options` is required, then proves that `evidrift check` catches the mismatch. It runs no downloaded package code.
+
+**If that is a failure you want caught before merge, [star Evidrift on GitHub](https://github.com/bm1016bm-svg/evidrift).**
+
+## Installation — Add It to a Repository
+
+Initialize the current repository without a global install, account, API key, or cloud backend:
+
+```bash
+npx --yes evidrift@latest init
+```
 
 To pin Evidrift for a team or CI workflow:
 
 ```bash
 npm install --save-dev evidrift
 npx evidrift init
-```
-
-## Quick Start
-
-Run the self-contained drift demo:
-
-```bash
-npx --yes evidrift demo
-```
-
-The demo creates an ignored `.evidrift-demo/signature-drift` workspace, records the optional `options` parameter on `parseConfig`, checks it successfully, changes the fixture so `options` is required, then shows the deterministic failure. It executes no downloaded package code.
-
-```text
-FAIL contract_mismatch sha256:...
-Claim: parseConfig accepts an optional options parameter used by the demo.
-Expected signature: parseConfig(input:string,options?:ParseOptions):ParseResult
-Current signature: parseConfig(input:string,options:ParseOptions):ParseResult
-Affected code location: app/src/index.ts:3
-Receipt ID: sha256:...
-Action: Review the dependency change and affected code, then intentionally record a new receipt.
 ```
 
 That is the product: make an AI assumption reviewable now, then make CI check the same contract later.

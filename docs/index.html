@@ -233,6 +233,14 @@
         border-radius: 12px;
       }
 
+      .demo-image {
+        display: block;
+        width: 100%;
+        margin: 30px 0;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+      }
+
       section {
         padding: 72px 0;
         border-top: 1px solid var(--line);
@@ -370,7 +378,7 @@
         </p>
         <div class="actions">
           <a class="button primary" href="#demo">Run the 10-second demo</a>
-          <a class="button" href="https://github.com/bm1016bm-svg/evidrift">Read the source</a>
+          <a class="button" href="https://github.com/bm1016bm-svg/evidrift">★ Star on GitHub</a>
         </div>
         <img
           class="hero-image"
@@ -420,7 +428,19 @@
         <section id="demo" aria-labelledby="demo-title">
           <div class="eyebrow">No signup. No API key. No cloud.</div>
           <h2 id="demo-title">Break it in ten seconds.</h2>
-          <pre><code>npx --yes evidrift demo</code></pre>
+          <pre><code>npx --yes evidrift@latest demo</code></pre>
+          <img
+            class="demo-image"
+            src="assets/evidrift-demo.gif"
+            width="1200"
+            height="675"
+            loading="lazy"
+            alt="Real Evidrift CLI demo: a TypeScript contract passes, the dependency signature changes, and Evidrift reports deterministic contract drift"
+          />
+          <p class="muted">
+            Rendered from a real local CLI transcript. No package code, cloud service, or LLM
+            verdict is involved.
+          </p>
           <pre
             aria-label="Example deterministic failure"
           ><code><span class="fail">FAIL contract_mismatch</span> sha256:...
@@ -430,6 +450,12 @@ Current signature: parseConfig(input:string,options:ParseOptions):ParseResult
 Affected code location: app/src/index.ts:3
 Receipt ID: sha256:...
 Action: Review the dependency change, then intentionally record new evidence.</code></pre>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/bm1016bm-svg/evidrift"
+              >★ Star Evidrift</a
+            >
+            <a class="button" href="https://www.npmjs.com/package/evidrift">View on npm</a>
+          </div>
         </section>
 
         <section aria-labelledby="difference-title">

@@ -65,6 +65,7 @@
     "build": "tsc -p tsconfig.json",
     "check": "node dist/src/cli.js check",
     "demo": "npm run build && node dist/src/cli.js demo",
+    "demo:capture": "npm run build && node scripts/capture-demo.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint src tests --max-warnings 0",
