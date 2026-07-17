@@ -1,0 +1,41 @@
+Evidrift signature-drift demo
+Workspace: .evidrift-demo/signature-drift
+
+1/3 Evidence recorded
+RECORDED sha256:01c766cf9ddc2f4dc961d9c2ba42f93860e094e10dee2bbf1c19afd097e42288
+Claim: parseConfig accepts the optional options parameter used by this demo.
+Expected signature: parseConfig(input:string,options?:ParseOptions):ParseResult
+Affected code location: app/src/index.ts:3
+Receipt ID: sha256:01c766cf9ddc2f4dc961d9c2ba42f93860e094e10dee2bbf1c19afd097e42288
+Receipt file: .evidrift/receipts/01c766cf9ddc2f4dc961d9c2ba42f93860e094e10dee2bbf1c19afd097e42288.json
+State: recorded evidence; no verified or runtime-correctness claim was stored.
+
+2/3 Baseline contract
+PASS sha256:01c766cf9ddc2f4dc961d9c2ba42f93860e094e10dee2bbf1c19afd097e42288
+Message: Deterministic TypeScript signature matches.
+Claim: parseConfig accepts the optional options parameter used by this demo.
+Expected signature: parseConfig(input:string,options?:ParseOptions):ParseResult
+Current signature: parseConfig(input:string,options?:ParseOptions):ParseResult
+Affected code location: app/src/index.ts:3
+Receipt ID: sha256:01c766cf9ddc2f4dc961d9c2ba42f93860e094e10dee2bbf1c19afd097e42288
+Package version: expected 1.0.0; current 1.0.0
+Resolved path: expected app/node_modules/@evidrift/demo-contract/index.d.ts; current app/node_modules/@evidrift/demo-contract/index.d.ts
+
+Summary: 1 pass, 0 warning, 0 fail
+
+3/3 Dependency signature changed on purpose
+FAIL contract_mismatch sha256:01c766cf9ddc2f4dc961d9c2ba42f93860e094e10dee2bbf1c19afd097e42288
+Message: Deterministic TypeScript contract mismatch: Previously recorded TypeScript signature was not found.
+Claim: parseConfig accepts the optional options parameter used by this demo.
+Expected signature: parseConfig(input:string,options?:ParseOptions):ParseResult
+Current signature: parseConfig(input:string,options:ParseOptions):ParseResult
+Affected code location: app/src/index.ts:3
+Receipt ID: sha256:01c766cf9ddc2f4dc961d9c2ba42f93860e094e10dee2bbf1c19afd097e42288
+Package version: expected 1.0.0; current unavailable
+Resolved path: expected app/node_modules/@evidrift/demo-contract/index.d.ts; current unavailable
+Action: Review the dependency change and affected code, then intentionally record a new receipt.
+
+Summary: 0 pass, 0 warning, 1 fail
+
+Evidrift caught the dependency contract drift before merge.
+Next: inspect the generated .evidrift-demo/signature-drift workspace or run `evidrift demo` again.

@@ -1,53 +1,48 @@
-# Evidrift — evidence lockfile for AI coding agents
+# Evidrift — API drift checks for AI-generated TypeScript and OpenAPI code
 
 [![CI](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml/badge.svg)](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/evidrift.svg)](https://www.npmjs.com/package/evidrift)
+[![Website](https://img.shields.io/badge/docs-GitHub%20Pages-111111.svg)](https://bm1016bm-svg.github.io/evidrift/)
 
 > **Code compiles. APIs drift. Evidrift is the lockfile for AI assumptions.**
 
-Coding agents can write against a dependency or JSON contract that changes tomorrow. Evidrift records the exact TypeScript call signature or repository JSON value as a content-addressed Receipt, then makes CI recompute it before merge.
+Coding agents can write against a TypeScript dependency or OpenAPI contract that changes tomorrow. Evidrift records the exact call signature or repository JSON value as a content-addressed Receipt, then makes CI recompute it before merge.
 
 Local-first CLI. STDIO MCP server. No account, no cloud backend, no LLM judge, and no package code execution.
 
-![Evidrift — AI dependency lockfile](docs/assets/evidrift-hero.png)
+It deterministically catches selected TypeScript overload and parameter drift, repository-local OpenAPI or JSON Schema value drift through RFC 6901 JSON Pointer, and hand-edited or forged Receipt content.
 
-[![Evidrift demo: a dependency contract passes, then fails after its TypeScript signature changes](docs/assets/evidrift-demo.svg)](#quick-start)
+![Evidrift — AI dependency lockfile](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-hero.png)
 
-## Installation
+[![Real Evidrift CLI demo: a dependency contract passes, its TypeScript signature changes, and Evidrift catches the drift before merge](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-demo.gif)](#quick-start--try-it-in-10-seconds)
 
-Requires Node.js 22 or newer. Run Evidrift directly from npm:
+The animation is rendered from a [captured CLI transcript](https://github.com/bm1016bm-svg/evidrift/blob/main/docs/assets/evidrift-demo-transcript.txt). The PASS, changed signatures, affected file, and deterministic FAIL come from an actual local `evidrift demo` run; only the scene headings are editorial.
+
+## Quick Start — Try It in 10 Seconds
+
+Requires Node.js 22 or newer. Nothing to install globally:
 
 ```bash
-npx --yes evidrift init
+npx --yes evidrift@latest demo
 ```
 
-That command initializes the current repository. No global install, Evidrift account, API key, or cloud backend is required.
+The command creates a disposable local fixture, records the optional `options` parameter on `parseConfig`, checks it successfully, changes the fixture so `options` is required, then proves that `evidrift check` catches the mismatch. It runs no downloaded package code.
+
+**If that is a failure you want caught before merge, [star Evidrift on GitHub](https://github.com/bm1016bm-svg/evidrift).**
+
+## Installation — Add It to a Repository
+
+Initialize the current repository without a global install, account, API key, or cloud backend:
+
+```bash
+npx --yes evidrift@latest init
+```
 
 To pin Evidrift for a team or CI workflow:
 
 ```bash
 npm install --save-dev evidrift
 npx evidrift init
-```
-
-## Quick Start
-
-Run the self-contained drift demo:
-
-```bash
-npx --yes evidrift demo
-```
-
-The demo creates an ignored `.evidrift-demo/signature-drift` workspace, records the optional `options` parameter on `parseConfig`, checks it successfully, changes the fixture so `options` is required, then shows the deterministic failure. It executes no downloaded package code.
-
-```text
-FAIL contract_mismatch sha256:...
-Claim: parseConfig accepts an optional options parameter used by the demo.
-Expected signature: parseConfig(input:string,options?:ParseOptions):ParseResult
-Current signature: parseConfig(input:string,options:ParseOptions):ParseResult
-Affected code location: app/src/index.ts:3
-Receipt ID: sha256:...
-Action: Review the dependency change and affected code, then intentionally record a new receipt.
 ```
 
 That is the product: make an AI assumption reviewable now, then make CI check the same contract later.
@@ -143,6 +138,28 @@ In a human TTY, `check`, `diff`, `explain`, and `demo` use a spinner plus green 
 | AI code review        | Make a probabilistic judgment                  | Produce a deterministic result without an LLM CI judge |
 
 Use all of them if they help. Evidrift covers one gap: the reason code was written can go stale even when the code itself did not change.
+
+## Frequently Asked Questions
+
+### What is API drift?
+
+API drift is a change to a dependency or contract after code was written against it. Evidrift v0.3.1 checks two deterministic forms: the TypeScript call signature selected at an affected code location, and a canonical value selected from repository-local OpenAPI JSON or JSON Schema.
+
+### Is Evidrift a contract-testing tool?
+
+It is narrower than end-to-end contract testing. Contract tests exercise provider and consumer behavior; Evidrift locks one explicit assumption that influenced code and revalidates that assumption in CI without running dependency code.
+
+### Does Evidrift work with Codex, Claude Code, and Cursor?
+
+Yes. They can call the local STDIO MCP server to create Receipts through the shared verification core. The agent cannot directly mark a Receipt as verified. See the [minimal MCP configurations](docs/mcp.md).
+
+### Does Evidrift fetch OpenAPI URLs or execute package code?
+
+No. The v0.3.1 adapters inspect installed TypeScript declarations and repository-local `.json` files. They do not fetch URLs, resolve remote `$ref`, import dependency JavaScript, or execute arbitrary commands.
+
+### Does Evidrift prove that AI-generated code is correct?
+
+No. It detects deterministic evidence drift and Receipt tampering. It does not prove runtime correctness, validate free-text semantics, or eliminate hallucinations. See [What Evidrift Does Not Prove](#what-evidrift-does-not-prove).
 
 ## CLI
 

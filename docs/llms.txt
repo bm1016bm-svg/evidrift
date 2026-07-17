@@ -1,0 +1,36 @@
+# Evidrift
+
+> Evidrift is a local-first CLI and STDIO MCP server that records deterministic assumptions behind AI-generated TypeScript and OpenAPI code, then revalidates them in CI when APIs drift.
+
+## Try it
+
+- Demo: `npx --yes evidrift@latest demo`
+- Initialize a repository: `npx --yes evidrift@latest init`
+- Real CLI demo animation: https://bm1016bm-svg.github.io/evidrift/assets/evidrift-demo.gif
+- npm: https://www.npmjs.com/package/evidrift
+- Source: https://github.com/bm1016bm-svg/evidrift
+
+## Deterministic evidence
+
+- `typescript.symbol`: records the installed package version, resolved declaration path, selected overload or parameter, normalized call signature, and signature hash.
+- `json.pointer`: records a canonical value from a repository-local OpenAPI JSON or JSON Schema file through RFC 6901 JSON Pointer.
+- Receipt integrity: canonical serialization plus content-addressed SHA-256 identifiers; saved status fields are never trusted by `evidrift check`.
+
+## Agent integrations
+
+- Codex, Claude Code, and Cursor use the same local STDIO MCP server.
+- Agents request Receipt creation through MCP; they do not write trusted verification results directly.
+- MCP setup: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/mcp.md
+
+## Documentation
+
+- README and quick start: https://github.com/bm1016bm-svg/evidrift#readme
+- Architecture and trust boundaries: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/architecture.md
+- Receipt schema: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/receipt-schema.md
+- User acceptance tests: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/UAT.md
+- TypeScript overload boss fight: https://github.com/bm1016bm-svg/evidrift/blob/main/examples/boss-fight-test/README.md
+- OpenAPI JSON Pointer example: https://github.com/bm1016bm-svg/evidrift/blob/main/examples/json-pointer/README.md
+
+## Deliberate limits
+
+Evidrift does not prove runtime correctness, validate free-text semantics, fetch arbitrary URLs, resolve remote OpenAPI references, execute dependency code, or use an LLM judge in CI. Source changes warn; only deterministic contract mismatches fail by default.

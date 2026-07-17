@@ -14,6 +14,16 @@ npm run uat
 
 `npm run verify` runs formatting, lint, typecheck, all automated tests, the end-to-end smoke test, and a check of this repository's committed Receipt. `npm run uat` isolates the user-facing acceptance cases.
 
+Local v0.3.1 discovery and onboarding checkpoint on 2026-07-17:
+
+- Platform: Windows, Node.js `v24.13.0`, npm `11.6.2`.
+- Automated result: `npm test` passed 59/59 tests with 0 failures, 0 skips, and then passed the end-to-end smoke test.
+- Static gates: lint, typecheck, release metadata alignment at `v0.3.1`, changed-file formatting, and this repository's committed Receipt check passed.
+- Packed-install result: a fresh npm cache installed `evidrift-0.3.1.tgz`; `--version` returned `0.3.1`, bare invocation exposed the demo command, `init` printed agent/CI next steps, and `demo` reproduced deterministic PASS-to-FAIL drift.
+- v0.3.1 local pack result: 52,672 packed bytes and 239,442 unpacked bytes. These numbers come from the final `npm pack --json` UAT output.
+- Demo asset result: `scripts/capture-demo.mjs` executed the compiled CLI with `CI=true` and `NO_COLOR=1`, required both deterministic statuses, and wrote the transcript used to render the 1200×675 GIF. The GIF is 131,242 bytes; its five editorial scenes do not replace the stored transcript.
+- The default whole-workspace formatting command was not counted in this local checkpoint because unrelated user-owned untracked directories are present beside this checkout. The changed files passed Prettier; the clean-clone GitHub Actions run remains the authoritative full formatting gate.
+
 Local v0.3 release-candidate checkpoint on 2026-07-16:
 
 - Platform: Windows, Node.js `v24.13.0`, npm `11.6.2`.
@@ -33,64 +43,67 @@ Test counts and pack sizes come only from their final command output. Registry v
 
 ## Acceptance matrix
 
-| ID     | User or threat action                                          | Expected result                                                                     | Automated evidence                 |
-| ------ | -------------------------------------------------------------- | ----------------------------------------------------------------------------------- | ---------------------------------- |
-| UAT-01 | Run `init` twice                                               | First call creates storage; second is safe and idempotent                           | `tests/uat.test.ts` lifecycle test |
-| UAT-02 | Record an installed symbol and parameter                       | Content-addressed Receipt is written; no verified state is stored                   | lifecycle and core tests           |
-| UAT-03 | Check unchanged dependency                                     | `PASS`, exit `0`, claim and affected code shown                                     | lifecycle test                     |
-| UAT-04 | Change optional parameter to required                          | `FAIL contract_mismatch`, exit `1`, expected/current signatures and action shown    | lifecycle test and smoke test      |
-| UAT-05 | Run `diff` and `explain`                                       | Drift is shown; four trust axes are separated                                       | lifecycle test                     |
-| UAT-06 | Change package version but keep signature                      | `WARNING source_changed`, exit `0`                                                  | core test                          |
-| UAT-07 | Remove exported symbol                                         | Deterministic blocking mismatch                                                     | core and UAT mismatch tests        |
-| UAT-08 | Replace the recorded signature with a nonmatching overload set | Deterministic blocking mismatch with the current candidates                         | UAT mismatch test                  |
-| UAT-09 | Put throwing code in package JavaScript                        | Recording succeeds without executing it                                             | core execution-safety test         |
-| UAT-10 | Edit one line of a Receipt                                     | `FAIL evidence_integrity`, exit `2`, recovery action shown                          | UAT tamper test                    |
-| UAT-11 | Add `matched` or `verified` to a Receipt                       | Strict-schema integrity failure                                                     | core and UAT forged-state tests    |
-| UAT-12 | Break Receipt JSON                                             | Classified integrity failure, not a stack trace                                     | UAT malformed-evidence test        |
-| UAT-13 | Delete a referenced Receipt                                    | Classified missing-file integrity failure                                           | UAT malformed-evidence test        |
-| UAT-14 | Duplicate a lock ID                                            | Classified lock integrity failure                                                   | UAT malformed-evidence test        |
-| UAT-15 | Supply an oversized Receipt                                    | Rejected before full read                                                           | core size-limit test               |
-| UAT-16 | Replace Receipt directory with a symlink                       | Rejected instead of followed                                                        | core symlink test                  |
-| UAT-17 | Use `https://does-not-exist.invalid/...` as package source     | Rejected locally as unsupported URL; no request is sent                             | CLI and MCP UAT tests              |
-| UAT-18 | Name a package that is not installed                           | Clear record error; no Receipt written                                              | UAT invalid-input test             |
-| UAT-19 | Name a parameter that does not exist                           | Clear record error; no Receipt written                                              | UAT invalid-input test             |
-| UAT-20 | Escape the repository with `../`                               | Path rejected                                                                       | UAT invalid-input test             |
-| UAT-21 | Point to missing affected code                                 | Record refused with the exact missing path                                          | UAT invalid-input test             |
-| UAT-22 | Remove dependency after recording                              | `WARNING unverifiable`, exit `0`, recovery action shown                             | UAT source-warning test            |
-| UAT-23 | Corrupt the TypeScript declaration                             | Readable non-blocking warning                                                       | UAT source-warning test            |
-| UAT-24 | Record through STDIO MCP                                       | Same core writes the same Receipt format                                            | MCP integration test               |
-| UAT-25 | Send raw `verified` through MCP                                | Strict input rejection; lock stays empty                                            | MCP rejection test                 |
-| UAT-26 | Build an npm tarball                                           | Executables and license included; source, tests, examples, and `.evidrift` excluded | package test                       |
-| UAT-27 | Serialize equal objects in different key order                 | Same canonical SHA-256 content address                                              | canonical test                     |
-| UAT-28 | Rewrite Receipt and lock with a newly calculated ID            | Internally valid; must be caught in Git review                                      | coordinated-rehash boundary test   |
-| UAT-29 | Inject newline, ANSI, or C1 controls into untrusted text       | Record rejects it; rendered failures escape controls and cannot forge log lines     | text and control-character tests   |
-| UAT-30 | Name 1,024 or 1,025 Receipts in the lock                       | New record is refused without an orphan; oversized lock fails before reads          | Receipt-count limit test           |
-| UAT-31 | Change spaces inside a TypeScript string-literal type          | Exact literal change is a deterministic mismatch                                    | literal-whitespace core test       |
-| UAT-32 | Import declaration types from another repository file          | Repository-local transitive declarations are resolved                               | transitive core test               |
-| UAT-33 | Import a declaration outside the repository                    | Revalidation becomes a readable `WARNING unverifiable`; external file is refused    | transitive-boundary UAT test       |
-| UAT-34 | Exceed declaration file-count or byte budgets                  | Evidence creation fails with the exact active limit                                 | resource-budget UAT test           |
-| UAT-35 | Point demo work paths at an outside directory junction         | Demo refuses cleanup and outside data remains intact                                | demo-cleanup UAT test              |
-| UAT-36 | Install the packed artifact in a fresh temporary consumer      | Installed `evidrift` help runs and the `evidrift-mcp` executable exists             | packed-install checkpoint          |
-| UAT-37 | Record three overloads using a complex cross-file alias        | Missing selector lists candidates; selector `2` records the numeric contract        | boss-fight UAT test                |
-| UAT-38 | Run check in a TTY, pipe, CI, or `NO_COLOR` environment        | Human TTY gets colored icons; machine-oriented output remains stable and ANSI-free  | terminal rendering tests           |
-| UAT-39 | Run the self-contained `evidrift demo` command                 | Local evidence passes, signature is changed, mismatch is shown, command exits `0`   | demo-command UAT test              |
-| UAT-40 | Execute the packed CLI through real local-tarball `npx`        | `init` creates storage and `demo` reproduces PASS-to-FAIL without a global install  | npx packed-install checkpoint      |
-| UAT-41 | Run the authenticated npm publication checkpoint               | `prepublishOnly` passes and the public registry returns the exact artifact hash     | 2026-07-15 release checkpoint      |
-| UAT-42 | Place user-owned data at the demo workspace path               | Demo refuses replacement without its exact marker and preserves the data            | unmarked-demo UAT test             |
-| UAT-43 | Run bare `npx evidrift` from a clean external consumer         | Public `init` creates storage and `demo` reproduces PASS-to-FAIL drift              | 2026-07-15 public-npx checkpoint   |
-| UAT-44 | Reorder or prepend unrelated overload declarations             | Stored signature hash still resolves and check remains `PASS`                       | core and boss-fight tests          |
-| UAT-45 | Change or remove only the selected overload                    | Deterministic mismatch shows expected signature and current overload set            | core and boss-fight tests          |
-| UAT-46 | Submit zero, unsafe, out-of-range, or more than 64 overloads   | Input or resource limit is refused before a Receipt is written                      | CLI, core, and UAT tests           |
-| UAT-47 | Point `--code path:line` at a valid overloaded call            | TypeScript's resolved overload is recorded without a numeric selector               | core, MCP, and boss-fight tests    |
-| UAT-48 | Point at an invalid, missing, or conflicting overloaded call   | Record is refused with a readable fallback; no overload is guessed                  | core and UAT tests                 |
-| UAT-49 | Record a repository JSON value by RFC 6901 pointer             | Canonical selected value and source hashes are content-addressed                    | core, CLI, and MCP tests           |
-| UAT-50 | Change unrelated content in the same JSON document             | `WARNING source_changed`, exit `0`; selected contract still matches                 | core test                          |
-| UAT-51 | Change or remove the selected JSON value                       | `FAIL contract_mismatch`, exit `1`, expected/current values and action shown        | core and CLI UAT tests             |
-| UAT-52 | Corrupt or remove the JSON source                              | Readable `WARNING unverifiable`, exit `0`                                           | core test                          |
-| UAT-53 | Use escaped keys, empty keys, root pointer, or array index     | RFC 6901 value resolves exactly                                                     | JSON Pointer unit tests            |
-| UAT-54 | Use malformed escapes, leading-zero array index, or bad token  | Record is refused with a classified error                                           | JSON Pointer and CLI tests         |
-| UAT-55 | Submit URL or mixed TypeScript/JSON locators                   | Input is refused locally; no network request or Receipt write                       | CLI UAT test                       |
-| UAT-56 | Hand-edit JSON `expectedValue` without matching hashes         | `FAIL evidence_integrity` before source revalidation                                | core integrity test                |
+| ID     | User or threat action                                          | Expected result                                                                          | Automated evidence                    |
+| ------ | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------- |
+| UAT-01 | Run `init` twice                                               | First call creates storage; second is safe and idempotent                                | `tests/uat.test.ts` lifecycle test    |
+| UAT-02 | Record an installed symbol and parameter                       | Content-addressed Receipt is written; no verified state is stored                        | lifecycle and core tests              |
+| UAT-03 | Check unchanged dependency                                     | `PASS`, exit `0`, claim and affected code shown                                          | lifecycle test                        |
+| UAT-04 | Change optional parameter to required                          | `FAIL contract_mismatch`, exit `1`, expected/current signatures and action shown         | lifecycle test and smoke test         |
+| UAT-05 | Run `diff` and `explain`                                       | Drift is shown; four trust axes are separated                                            | lifecycle test                        |
+| UAT-06 | Change package version but keep signature                      | `WARNING source_changed`, exit `0`                                                       | core test                             |
+| UAT-07 | Remove exported symbol                                         | Deterministic blocking mismatch                                                          | core and UAT mismatch tests           |
+| UAT-08 | Replace the recorded signature with a nonmatching overload set | Deterministic blocking mismatch with the current candidates                              | UAT mismatch test                     |
+| UAT-09 | Put throwing code in package JavaScript                        | Recording succeeds without executing it                                                  | core execution-safety test            |
+| UAT-10 | Edit one line of a Receipt                                     | `FAIL evidence_integrity`, exit `2`, recovery action shown                               | UAT tamper test                       |
+| UAT-11 | Add `matched` or `verified` to a Receipt                       | Strict-schema integrity failure                                                          | core and UAT forged-state tests       |
+| UAT-12 | Break Receipt JSON                                             | Classified integrity failure, not a stack trace                                          | UAT malformed-evidence test           |
+| UAT-13 | Delete a referenced Receipt                                    | Classified missing-file integrity failure                                                | UAT malformed-evidence test           |
+| UAT-14 | Duplicate a lock ID                                            | Classified lock integrity failure                                                        | UAT malformed-evidence test           |
+| UAT-15 | Supply an oversized Receipt                                    | Rejected before full read                                                                | core size-limit test                  |
+| UAT-16 | Replace Receipt directory with a symlink                       | Rejected instead of followed                                                             | core symlink test                     |
+| UAT-17 | Use `https://does-not-exist.invalid/...` as package source     | Rejected locally as unsupported URL; no request is sent                                  | CLI and MCP UAT tests                 |
+| UAT-18 | Name a package that is not installed                           | Clear record error; no Receipt written                                                   | UAT invalid-input test                |
+| UAT-19 | Name a parameter that does not exist                           | Clear record error; no Receipt written                                                   | UAT invalid-input test                |
+| UAT-20 | Escape the repository with `../`                               | Path rejected                                                                            | UAT invalid-input test                |
+| UAT-21 | Point to missing affected code                                 | Record refused with the exact missing path                                               | UAT invalid-input test                |
+| UAT-22 | Remove dependency after recording                              | `WARNING unverifiable`, exit `0`, recovery action shown                                  | UAT source-warning test               |
+| UAT-23 | Corrupt the TypeScript declaration                             | Readable non-blocking warning                                                            | UAT source-warning test               |
+| UAT-24 | Record through STDIO MCP                                       | Same core writes the same Receipt format                                                 | MCP integration test                  |
+| UAT-25 | Send raw `verified` through MCP                                | Strict input rejection; lock stays empty                                                 | MCP rejection test                    |
+| UAT-26 | Build an npm tarball                                           | Executables and license included; source, tests, examples, and `.evidrift` excluded      | package test                          |
+| UAT-27 | Serialize equal objects in different key order                 | Same canonical SHA-256 content address                                                   | canonical test                        |
+| UAT-28 | Rewrite Receipt and lock with a newly calculated ID            | Internally valid; must be caught in Git review                                           | coordinated-rehash boundary test      |
+| UAT-29 | Inject newline, ANSI, or C1 controls into untrusted text       | Record rejects it; rendered failures escape controls and cannot forge log lines          | text and control-character tests      |
+| UAT-30 | Name 1,024 or 1,025 Receipts in the lock                       | New record is refused without an orphan; oversized lock fails before reads               | Receipt-count limit test              |
+| UAT-31 | Change spaces inside a TypeScript string-literal type          | Exact literal change is a deterministic mismatch                                         | literal-whitespace core test          |
+| UAT-32 | Import declaration types from another repository file          | Repository-local transitive declarations are resolved                                    | transitive core test                  |
+| UAT-33 | Import a declaration outside the repository                    | Revalidation becomes a readable `WARNING unverifiable`; external file is refused         | transitive-boundary UAT test          |
+| UAT-34 | Exceed declaration file-count or byte budgets                  | Evidence creation fails with the exact active limit                                      | resource-budget UAT test              |
+| UAT-35 | Point demo work paths at an outside directory junction         | Demo refuses cleanup and outside data remains intact                                     | demo-cleanup UAT test                 |
+| UAT-36 | Install the packed artifact in a fresh temporary consumer      | Installed `evidrift` help runs and the `evidrift-mcp` executable exists                  | packed-install checkpoint             |
+| UAT-37 | Record three overloads using a complex cross-file alias        | Missing selector lists candidates; selector `2` records the numeric contract             | boss-fight UAT test                   |
+| UAT-38 | Run check in a TTY, pipe, CI, or `NO_COLOR` environment        | Human TTY gets colored icons; machine-oriented output remains stable and ANSI-free       | terminal rendering tests              |
+| UAT-39 | Run the self-contained `evidrift demo` command                 | Local evidence passes, signature is changed, mismatch is shown, command exits `0`        | demo-command UAT test                 |
+| UAT-40 | Execute the packed CLI through real local-tarball `npx`        | `init` creates storage and `demo` reproduces PASS-to-FAIL without a global install       | npx packed-install checkpoint         |
+| UAT-41 | Run the authenticated npm publication checkpoint               | `prepublishOnly` passes and the public registry returns the exact artifact hash          | 2026-07-15 release checkpoint         |
+| UAT-42 | Place user-owned data at the demo workspace path               | Demo refuses replacement without its exact marker and preserves the data                 | unmarked-demo UAT test                |
+| UAT-43 | Run bare `npx evidrift` from a clean external consumer         | Public `init` creates storage and `demo` reproduces PASS-to-FAIL drift                   | 2026-07-15 public-npx checkpoint      |
+| UAT-44 | Reorder or prepend unrelated overload declarations             | Stored signature hash still resolves and check remains `PASS`                            | core and boss-fight tests             |
+| UAT-45 | Change or remove only the selected overload                    | Deterministic mismatch shows expected signature and current overload set                 | core and boss-fight tests             |
+| UAT-46 | Submit zero, unsafe, out-of-range, or more than 64 overloads   | Input or resource limit is refused before a Receipt is written                           | CLI, core, and UAT tests              |
+| UAT-47 | Point `--code path:line` at a valid overloaded call            | TypeScript's resolved overload is recorded without a numeric selector                    | core, MCP, and boss-fight tests       |
+| UAT-48 | Point at an invalid, missing, or conflicting overloaded call   | Record is refused with a readable fallback; no overload is guessed                       | core and UAT tests                    |
+| UAT-49 | Record a repository JSON value by RFC 6901 pointer             | Canonical selected value and source hashes are content-addressed                         | core, CLI, and MCP tests              |
+| UAT-50 | Change unrelated content in the same JSON document             | `WARNING source_changed`, exit `0`; selected contract still matches                      | core test                             |
+| UAT-51 | Change or remove the selected JSON value                       | `FAIL contract_mismatch`, exit `1`, expected/current values and action shown             | core and CLI UAT tests                |
+| UAT-52 | Corrupt or remove the JSON source                              | Readable `WARNING unverifiable`, exit `0`                                                | core test                             |
+| UAT-53 | Use escaped keys, empty keys, root pointer, or array index     | RFC 6901 value resolves exactly                                                          | JSON Pointer unit tests               |
+| UAT-54 | Use malformed escapes, leading-zero array index, or bad token  | Record is refused with a classified error                                                | JSON Pointer and CLI tests            |
+| UAT-55 | Submit URL or mixed TypeScript/JSON locators                   | Input is refused locally; no network request or Receipt write                            | CLI UAT test                          |
+| UAT-56 | Hand-edit JSON `expectedValue` without matching hashes         | `FAIL evidence_integrity` before source revalidation                                     | core integrity test                   |
+| UAT-57 | Run Evidrift without a command                                 | Exit `0` and show one copy-pasteable ten-second demo command                             | onboarding test                       |
+| UAT-58 | Initialize a fresh repository                                  | Create storage and print concrete agent, commit, CI, and demo next steps                 | onboarding and packed-install UAT     |
+| UAT-59 | Regenerate the public demo asset                               | Real transcript contains PASS, changed signatures, affected code, and deterministic FAIL | SEO/discovery test and capture script |
 
 ## Tamper behavior
 
