@@ -25,6 +25,10 @@
 ## Documentation
 
 - README and quick start: https://github.com/bm1016bm-svg/evidrift#readme
+- Traditional Chinese README: https://github.com/bm1016bm-svg/evidrift/blob/main/README.zh-TW.md
+- Traditional Chinese website: https://bm1016bm-svg.github.io/evidrift/zh-TW/
+- Traditional Chinese FAQ: https://bm1016bm-svg.github.io/evidrift/zh-TW/faq.html
+- Traditional Chinese TypeScript signature-drift case: https://bm1016bm-svg.github.io/evidrift/zh-TW/cases/typescript-signature-drift.html
 - Architecture and trust boundaries: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/architecture.md
 - Receipt schema: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/receipt-schema.md
 - User acceptance tests: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/UAT.md

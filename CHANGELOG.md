@@ -6,6 +6,24 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 No changes yet.
 
+## [0.3.2] - 2026-07-17
+
+### Added
+
+- A complete Traditional Chinese README with the same Quick Start, trust boundaries, CLI commands, and deterministic error codes as the English documentation.
+- A `/zh-TW/` GitHub Pages entry, Traditional Chinese FAQ, and a reproduced TypeScript signature-drift case study.
+- Automated checks for bilingual navigation, localized discovery metadata, translated documentation coverage, and inclusion of `README.zh-TW.md` in the npm tarball.
+
+### Changed
+
+- English and Traditional Chinese documentation now link to each other explicitly.
+- Package, CLI, GitHub Pages, npm, and MCP Registry metadata now align on `0.3.2`.
+
+### Not included
+
+- CLI commands, Receipt schema fields, error codes, API names, and machine-readable output remain English to keep CI and agent integrations stable.
+- No verification behavior, network access, cloud service, or runtime-correctness claim changed in this release.
+
 ## [0.3.1] - 2026-07-17
 
 ### Added

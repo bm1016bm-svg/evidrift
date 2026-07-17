@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+    <title>Evidrift 繁中 FAQ — TypeScript API 與 OpenAPI contract drift</title>
+    <meta
+      name="description"
+      content="Evidrift 繁體中文常見問題：TypeScript API drift、OpenAPI contract drift、MCP、Receipt integrity 與明確限制。"
+    />
+    <link rel="canonical" href="https://bm1016bm-svg.github.io/evidrift/zh-TW/faq.html" />
+    <link rel="alternate" hreflang="en" href="https://bm1016bm-svg.github.io/evidrift/#faq" />
+    <link
+      rel="alternate"
+      hreflang="zh-Hant"
+      href="https://bm1016bm-svg.github.io/evidrift/zh-TW/faq.html"
+    />
+    <meta name="theme-color" content="#090909" />
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <nav aria-label="主要導覽">
+        <a class="brand" href="./">Evidrift</a>
+        <div class="links">
+          <a href="./">繁中首頁</a>
+          <a href="./cases/typescript-signature-drift.html">完整案例</a>
+          <a lang="en" href="../#faq">English FAQ</a>
+          <a href="https://github.com/bm1016bm-svg/evidrift">GitHub</a>
+        </div>
+      </nav>
+
+      <main class="prose">
+        <header>
+          <div class="eyebrow">Straight answers / zh-TW</div>
+          <h1>常見問題</h1>
+          <p class="lede">
+            直接說清楚 Evidrift 能檢查什麼、不能保證什麼，以及為什麼它不是另一個 AI reviewer。
+          </p>
+        </header>
+
+        <section class="faq" aria-label="Evidrift 常見問題">
+          <details open>
+            <summary>Evidrift 解決什麼問題？</summary>
+            <p>
+              Coding Agent 常依賴外部 assumption 寫程式，例如某條 TypeScript overload 接受特定
+              parameter，或某個 OpenAPI operation 仍使用指定 identifier。Code review
+              通常只留下實作，沒有保存這個理由。Evidrift 把 deterministic evidence 存進
+              repository，再交給 CI 重新檢查。
+            </p>
+          </details>
+
+          <details>
+            <summary>什麼是 TypeScript API drift？</summary>
+            <p>
+              消費端程式完成後，package declaration 發生改變。Evidrift 會詢問消費端專案的 TypeScript
+              compiler：真實 call 選到哪一條 declared overload，接著 normalize signature 並記錄
+              hash。Selected signature 改變時會產生 <code>FAIL contract_mismatch</code>；不相關的
+              overload reordering 不會。
+            </p>
+          </details>
+
+          <details>
+            <summary>什麼是 OpenAPI contract drift？</summary>
+            <p>
+              <code>json.pointer</code> adapter 會使用 RFC 6901 JSON Pointer，從 repository-local
+              OpenAPI JSON 或 JSON Schema 選出一個 canonical value。Selected value 改變會
+              deterministic FAIL；若只有不相關文件內容改變，selected value 仍相同，就會回報
+              <code>WARNING source_changed</code>。
+            </p>
+          </details>
+
+          <details>
+            <summary>Evidrift 與 contract testing 有什麼不同？</summary>
+            <p>
+              Contract testing 通常會執行 provider 與 consumer behavior。Evidrift 不執行 service 或
+              dependency code；它鎖定影響某個 code location 的一項明確 static assumption，並在 merge
+              前重新驗證。兩種工具可以一起使用。
+            </p>
+          </details>
+
+          <details>
+            <summary>Evidrift 與 RAG 或 AI code review 有什麼不同？</summary>
+            <p>
+              RAG 在生成答案時供應 context；AI code review 在程式完成後做 probabilistic
+              judgment。Evidrift 把 deterministic evidence commit 到 repository，之後不透過 LLM
+              judge 重新計算。
+            </p>
+          </details>
+
+          <details>
+            <summary>哪些 Coding Agent 可以使用 Evidrift？</summary>
+            <p>
+              任何能啟動 local STDIO server 的 MCP client 都能使用。Repository 包含 Codex、Claude
+              Code 與 Cursor 的最小設定；MCP tools 與 CLI 使用同一套 core。
+            </p>
+          </details>
+
+          <details>
+            <summary>Agent 能偽造 verified Receipt 嗎？</summary>
+            <p>
+              Receipt JSON 被視為不可信輸入。<code>evidrift check</code> 會驗證 schema、重新計算
+              Receipt ID 與 evidence hash，再載入 source；不信任儲存的 <code>matched</code> 或
+              <code>verified</code> field。若攻擊者同時替換 Receipt 與 lock，仍可建立新的 internally
+              consistent evidence，因此 Git review 與 branch protection 依然必要。
+            </p>
+          </details>
+
+          <details>
+            <summary>Evidrift 會抓 URL 或執行 command 嗎？</summary>
+            <p>
+              不會。TypeScript evidence 來自已安裝 declaration file，JSON evidence 來自
+              repository-local
+              <code>.json</code>。Receipt 無法觸發 shell command、package import、network request 或
+              LLM call。
+            </p>
+          </details>
+
+          <details>
+            <summary>目前還不支援什麼？</summary>
+            <p>
+              v0.3.2 不支援 YAML、remote URL、remote OpenAPI <code>$ref</code>、runtime
+              correctness、semantic equivalence、cloud storage、Dashboard、automatic repair 或
+              LLM-as-a-judge CI gate。
+            </p>
+          </details>
+        </section>
+
+        <section>
+          <h2>機器介面不翻譯</h2>
+          <p>
+            CLI command、Receipt schema、error code、API name 與 machine-readable output
+            刻意維持英文，讓 CI、MCP client、Coding Agent 和兩種語言的文件使用同一套穩定介面。
+          </p>
+        </section>
+      </main>
+
+      <footer>
+        <span>Evidrift v0.3.2 · FAQ · 繁體中文</span>
+        <span><a href="./">返回繁中首頁</a></span>
+      </footer>
+    </div>
+  </body>
+</html>
