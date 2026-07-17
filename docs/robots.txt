@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://bm1016bm-svg.github.io/evidrift/sitemap.xml

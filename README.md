@@ -1,13 +1,16 @@
-# Evidrift — evidence lockfile for AI coding agents
+# Evidrift — API drift checks for AI-generated TypeScript and OpenAPI code
 
 [![CI](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml/badge.svg)](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/evidrift.svg)](https://www.npmjs.com/package/evidrift)
+[![Website](https://img.shields.io/badge/docs-GitHub%20Pages-111111.svg)](https://bm1016bm-svg.github.io/evidrift/)
 
 > **Code compiles. APIs drift. Evidrift is the lockfile for AI assumptions.**
 
-Coding agents can write against a dependency or JSON contract that changes tomorrow. Evidrift records the exact TypeScript call signature or repository JSON value as a content-addressed Receipt, then makes CI recompute it before merge.
+Coding agents can write against a TypeScript dependency or OpenAPI contract that changes tomorrow. Evidrift records the exact call signature or repository JSON value as a content-addressed Receipt, then makes CI recompute it before merge.
 
 Local-first CLI. STDIO MCP server. No account, no cloud backend, no LLM judge, and no package code execution.
+
+It deterministically catches selected TypeScript overload and parameter drift, repository-local OpenAPI or JSON Schema value drift through RFC 6901 JSON Pointer, and hand-edited or forged Receipt content.
 
 ![Evidrift — AI dependency lockfile](docs/assets/evidrift-hero.png)
 
@@ -143,6 +146,28 @@ In a human TTY, `check`, `diff`, `explain`, and `demo` use a spinner plus green 
 | AI code review        | Make a probabilistic judgment                  | Produce a deterministic result without an LLM CI judge |
 
 Use all of them if they help. Evidrift covers one gap: the reason code was written can go stale even when the code itself did not change.
+
+## Frequently Asked Questions
+
+### What is API drift?
+
+API drift is a change to a dependency or contract after code was written against it. Evidrift v0.3.1 checks two deterministic forms: the TypeScript call signature selected at an affected code location, and a canonical value selected from repository-local OpenAPI JSON or JSON Schema.
+
+### Is Evidrift a contract-testing tool?
+
+It is narrower than end-to-end contract testing. Contract tests exercise provider and consumer behavior; Evidrift locks one explicit assumption that influenced code and revalidates that assumption in CI without running dependency code.
+
+### Does Evidrift work with Codex, Claude Code, and Cursor?
+
+Yes. They can call the local STDIO MCP server to create Receipts through the shared verification core. The agent cannot directly mark a Receipt as verified. See the [minimal MCP configurations](docs/mcp.md).
+
+### Does Evidrift fetch OpenAPI URLs or execute package code?
+
+No. The v0.3.1 adapters inspect installed TypeScript declarations and repository-local `.json` files. They do not fetch URLs, resolve remote `$ref`, import dependency JavaScript, or execute arbitrary commands.
+
+### Does Evidrift prove that AI-generated code is correct?
+
+No. It detects deterministic evidence drift and Receipt tampering. It does not prove runtime correctness, validate free-text semantics, or eliminate hallucinations. See [What Evidrift Does Not Prove](#what-evidrift-does-not-prove).
 
 ## CLI
 

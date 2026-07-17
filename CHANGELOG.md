@@ -6,6 +6,23 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 No changes yet.
 
+## [0.3.1] - 2026-07-17
+
+### Added
+
+- A static GitHub Pages discovery site with canonical metadata, social previews, structured software facts, `robots.txt`, `sitemap.xml`, and an agent-readable `llms.txt`.
+- Plain-language FAQ answers for TypeScript API drift, OpenAPI contract drift, contract testing, coding-agent support, and Evidrift's trust boundary.
+
+### Changed
+
+- GitHub, npm, README, and MCP descriptions now lead with the concrete TypeScript API and OpenAPI drift use case.
+- npm search keywords now include API drift, contract testing, evidence lockfiles, OpenAPI drift, and TypeScript MCP.
+- Package, CLI, MCP Registry, and release metadata now align on `0.3.1`.
+
+### Not included
+
+- No verification behavior, Receipt schema, network access, cloud service, or runtime-correctness claim changed in this release.
+
 ## [0.3.0] - 2026-07-16
 
 ### Added

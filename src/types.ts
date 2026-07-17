@@ -1,6 +1,6 @@
 export const RECEIPT_SCHEMA_VERSION = 1 as const;
 export const LOCK_SCHEMA_VERSION = 1 as const;
-export const EVIDRIFT_VERSION = '0.3.0';
+export const EVIDRIFT_VERSION = '0.3.1';
 
 export interface AffectedCode {
   path: string;
