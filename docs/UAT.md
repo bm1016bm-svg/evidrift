@@ -14,6 +14,17 @@ npm run uat
 
 `npm run verify` runs formatting, lint, typecheck, all automated tests, the end-to-end smoke test, and a check of this repository's committed Receipt. `npm run uat` isolates the user-facing acceptance cases.
 
+Local v0.3.2 bilingual-release checkpoint on 2026-07-17:
+
+- Platform: Windows, Node.js `v24.13.0`, npm `11.6.2`.
+- Automated result: `npm test` passed 60/60 tests with 0 failures, 0 skips, and then passed the end-to-end smoke test. Lint, typecheck, changed-file formatting, and the repository Receipt check also passed.
+- Packed-install result: a fresh npm cache installed `evidrift-0.3.2.tgz`; `--version` returned `0.3.2`, bare invocation exposed the copy-pasteable demo command, `init` created `.evidrift/`, and `demo` reproduced deterministic PASS-to-FAIL drift.
+- Compile-gap result: after the demo changed `options?: ParseOptions` to `options: ParseOptions`, its consumer still passed `tsc --noEmit --strict` with exit code `0`, while `evidrift check` reported `FAIL contract_mismatch`.
+- Package-content result: the installed artifact contains `README.zh-TW.md`, both CLI/MCP entrypoints, and no `src`, `tests`, or `examples` directory.
+- v0.3.2 local pack result: 64 entries, 57,306 packed bytes, 252,403 unpacked bytes, SHA-256 `1f1bc69284955583d8cd962be91cd3f79137d201a7be0537ad75229dda7fe340`. These values come from `npm pack --json` and `Get-FileHash` against that exact tarball.
+- Pages result: the Traditional Chinese landing page, FAQ, and signature-drift case rendered at 1280px and 390px widths with no horizontal overflow or browser console errors; the hero and lazy-loaded demo GIF both loaded successfully.
+- The default whole-workspace formatting command was not counted in this local checkpoint because unrelated user-owned untracked directories are present beside this checkout. The changed files passed Prettier; the clean-clone GitHub Actions run remains the authoritative full formatting gate.
+
 Local v0.3.1 discovery and onboarding checkpoint on 2026-07-17:
 
 - Platform: Windows, Node.js `v24.13.0`, npm `11.6.2`.

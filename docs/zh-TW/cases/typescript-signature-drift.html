@@ -1,0 +1,235 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml" />
+    <title>TypeScript 編譯通過，但 dependency signature 已漂移 — Evidrift 案例</title>
+    <meta
+      name="description"
+      content="完整重現：既有 TypeScript call 在 dependency parameter 由 optional 變成 required 後仍能編譯，但 Evidrift 在 CI 確定性偵測 signature drift。"
+    />
+    <link
+      rel="canonical"
+      href="https://bm1016bm-svg.github.io/evidrift/zh-TW/cases/typescript-signature-drift.html"
+    />
+    <link
+      rel="alternate"
+      hreflang="en"
+      href="https://github.com/bm1016bm-svg/evidrift/discussions/5"
+    />
+    <link
+      rel="alternate"
+      hreflang="zh-Hant"
+      href="https://bm1016bm-svg.github.io/evidrift/zh-TW/cases/typescript-signature-drift.html"
+    />
+    <meta name="theme-color" content="#090909" />
+    <meta property="og:type" content="article" />
+    <meta property="og:locale" content="zh_TW" />
+    <meta property="og:title" content="TypeScript 編譯通過，但 dependency signature 已漂移" />
+    <meta
+      property="og:description"
+      content="既有 call 仍通過 tsc，但 optional parameter 已變成 required。Evidrift 讓 CI 看見這個 deterministic contract mismatch。"
+    />
+    <meta
+      property="og:image"
+      content="https://bm1016bm-svg.github.io/evidrift/assets/evidrift-demo.gif"
+    />
+    <link rel="stylesheet" href="../style.css" />
+  </head>
+  <body>
+    <div class="wrap">
+      <nav aria-label="主要導覽">
+        <a class="brand" href="../">Evidrift</a>
+        <div class="links">
+          <a href="../">繁中首頁</a>
+          <a href="../faq.html">FAQ</a>
+          <a lang="en" href="https://github.com/bm1016bm-svg/evidrift/discussions/5"
+            >English case</a
+          >
+          <a href="https://github.com/bm1016bm-svg/evidrift">GitHub</a>
+        </div>
+      </nav>
+
+      <main class="prose">
+        <header>
+          <div class="eyebrow">Reproduced case / TypeScript API drift</div>
+          <h1>TypeScript 編譯通過，但 dependency signature 已漂移</h1>
+          <p class="lede">
+            危險的 dependency change 不一定讓 build 立刻變紅。Application file 沒改、既有 call 仍然
+            type-correct，<code>tsc --noEmit</code> 也回傳 <code>0</code>；但當初寫下程式所依賴的
+            external assumption 已經不再成立。
+          </p>
+          <img
+            class="demo-image"
+            src="../../assets/evidrift-demo.gif"
+            width="1200"
+            height="675"
+            alt="Evidrift 偵測 TypeScript dependency signature drift 的實際 CLI 動畫"
+          />
+        </header>
+
+        <section>
+          <div class="eyebrow">Reproduce it</div>
+          <h2>先自己跑一次</h2>
+          <pre><code>npx --yes evidrift@0.3.2 demo</code></pre>
+          <p>
+            不需要帳號、API key、cloud service、package-code execution 或 LLM verdict。指令會在
+            <code>.evidrift-demo/signature-drift</code> 建立有 marker 的可丟棄 workspace。
+          </p>
+        </section>
+
+        <section>
+          <div class="eyebrow">Before</div>
+          <h2>Dependency 原本的 contract</h2>
+          <p>本機 fixture package 一開始提供這份 declaration：</p>
+          <pre><code>export interface ParseOptions { strict?: boolean; }
+export interface ParseResult { value: string; }
+
+export declare function parseConfig(
+  input: string,
+  options?: ParseOptions,
+): ParseResult;</code></pre>
+
+          <p>Consumer application 已經傳入 <code>options</code>：</p>
+          <pre><code>import { parseConfig } from '@evidrift/demo-contract';
+
+const options = { strict: true } as const;
+export const parsed = parseConfig('demo', options);</code></pre>
+
+          <p>
+            因為這個 call 有提供第二個 argument，所以不論 parameter 是 optional 或
+            required，這一行都能通過 TypeScript compiler。
+          </p>
+        </section>
+
+        <section>
+          <div class="eyebrow">Record</div>
+          <h2>Evidrift 記錄了什麼</h2>
+          <p>
+            Evidrift 記錄實際安裝的 declaration、package version、resolved declaration
+            path、affected call site、normalized signature 與 signature hash。這個 fixture 的 claim
+            刻意保持狹窄：
+          </p>
+          <blockquote>
+            <code>parseConfig</code> accepts the optional <code>options</code> parameter used by
+            this demo.
+          </blockquote>
+          <p>第一次檢查會重新計算 declaration，結果通過：</p>
+          <pre><code>PASS sha256:01c766cf…
+Expected signature: parseConfig(input:string,options?:ParseOptions):ParseResult
+Current signature: parseConfig(input:string,options?:ParseOptions):ParseResult
+Affected code location: app/src/index.ts:3
+Receipt ID: sha256:01c766cf…
+Summary: 1 pass, 0 warning, 0 fail</code></pre>
+        </section>
+
+        <section>
+          <div class="eyebrow">After</div>
+          <h2>Dependency 改了，consumer 沒改</h2>
+          <p>Fixture 只修改 declaration：</p>
+          <pre><code> export declare function parseConfig(
+   input: string,
+-  options?: ParseOptions,
++  options: ParseOptions,
+ ): ParseResult;</code></pre>
+
+          <p>
+            Application 原本就有傳 <code>options</code>，所以 drifted workspace 仍然能編譯。本次
+            <code>evidrift-0.3.2.tgz</code> packed-install UAT 在 2026-07-17 對 demo 產生的 drifted
+            workspace 重跑 <code>tsc --noEmit --strict</code>，TypeScript exit code 是
+            <code>0</code>。
+          </p>
+
+          <p>
+            但這不代表 external contract 沒變。Parameter 已經不再 optional。之後任何省略
+            <code>options</code> 的 call、generated branch、test fixture，或依賴舊 optionality 的
+            Coding Agent，都拿著過期的 evidence。
+          </p>
+        </section>
+
+        <section>
+          <div class="eyebrow">CI result</div>
+          <h2>Evidrift 看見的差異</h2>
+          <p>
+            <code>evidrift check</code> 會重新載入 source 與計算 signature，不相信 Receipt 裡儲存的
+            <code>matched</code> 或 <code>verified</code> flag：
+          </p>
+          <pre><code><span class="fail">FAIL contract_mismatch</span> sha256:01c766cf…
+Message: Deterministic TypeScript contract mismatch:
+Previously recorded TypeScript signature was not found.
+Claim: parseConfig accepts the optional options parameter used by this demo.
+Expected signature: parseConfig(input:string,options?:ParseOptions):ParseResult
+Current signature: parseConfig(input:string,options:ParseOptions):ParseResult
+Affected code location: app/src/index.ts:3
+Receipt ID: sha256:01c766cf…
+Action: Review the dependency change and affected code, then intentionally record new evidence.
+Summary: 0 pass, 0 warning, 1 fail</code></pre>
+
+          <p>
+            結果是 deterministic：selected normalized signature 改變，因此 check exit code 是
+            <code>1</code>。沒有 semantic similarity score，也沒有 LLM judge。
+          </p>
+        </section>
+
+        <section>
+          <div class="eyebrow">Why it matters</div>
+          <h2>為什麼這個缺口值得處理</h2>
+          <ul>
+            <li>Consumer diff 可以是空的，但 installed dependency declaration 已改變。</li>
+            <li>
+              TypeScript 能證明這個 call 現在 type-correct，卻不保存「parameter 原本可省略」這項
+              historical assumption。
+            </li>
+            <li>
+              Code review 與一般 static analysis
+              通常檢查正在改的程式，不會保留舊程式當初成立的外部理由。
+            </li>
+            <li>
+              Receipt 讓 CI 能把 old contract、current contract、affected file 與 content-addressed
+              ID 交回 developer 或 Coding Agent。
+            </li>
+          </ul>
+        </section>
+
+        <section>
+          <div class="eyebrow">Human decision</div>
+          <h2>FAIL 之後該怎麼做</h2>
+          <p>不要直接重新產生 Receipt 來讓 CI 變綠。</p>
+          <ol>
+            <li>閱讀 dependency changelog，確認 signature change 是否刻意。</li>
+            <li>檢查 affected call 與可能省略 <code>options</code> 的其他 path。</li>
+            <li>若接受新 contract，更新 code、tests 與 written claim。</li>
+            <li>刻意執行 <code>evidrift record</code>，建立新的 evidence。</li>
+          </ol>
+        </section>
+
+        <section>
+          <div class="eyebrow">Honest boundary</div>
+          <h2>它沒有證明什麼</h2>
+          <p>
+            Evidrift 不證明 runtime correctness、不證明每個 call site 都相容，也不判斷 dependency
+            change 是好是壞。它證明的是一件更小但可驗證的事：為這個 affected line 記錄的
+            deterministic external contract，已經不是目前安裝的 contract。
+          </p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/bm1016bm-svg/evidrift"
+              >查看 source</a
+            >
+            <a class="button" href="https://www.npmjs.com/package/evidrift">npm</a>
+            <a class="button" href="../faq.html">繁中 FAQ</a>
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <span>Evidrift v0.3.2 · Reproduced case · 繁體中文</span>
+        <span>
+          <a href="https://github.com/bm1016bm-svg/evidrift/blob/main/CHANGELOG.md">Changelog</a>
+          ·
+          <a href="https://github.com/bm1016bm-svg/evidrift/discussions/5">English case</a>
+        </span>
+      </footer>
+    </div>
+  </body>
+</html>

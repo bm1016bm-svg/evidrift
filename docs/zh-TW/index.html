@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="zh-Hant-TW">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="icon" href="../assets/favicon.svg" type="image/svg+xml" />
+    <title>Evidrift 繁體中文 — 在 CI 檢查 TypeScript API 與 OpenAPI drift</title>
+    <meta
+      name="description"
+      content="Evidrift 是 local-first CLI 與 MCP Server，記錄 AI Coding Agent 依賴的 TypeScript 與 OpenAPI contract，再於 CI 確定性偵測 API drift。"
+    />
+    <link rel="canonical" href="https://bm1016bm-svg.github.io/evidrift/zh-TW/" />
+    <link rel="alternate" hreflang="en" href="https://bm1016bm-svg.github.io/evidrift/" />
+    <link
+      rel="alternate"
+      hreflang="zh-Hant"
+      href="https://bm1016bm-svg.github.io/evidrift/zh-TW/"
+    />
+    <link rel="alternate" hreflang="x-default" href="https://bm1016bm-svg.github.io/evidrift/" />
+    <meta name="theme-color" content="#090909" />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content="zh_TW" />
+    <meta property="og:site_name" content="Evidrift" />
+    <meta property="og:url" content="https://bm1016bm-svg.github.io/evidrift/zh-TW/" />
+    <meta property="og:title" content="Evidrift — Code compiles. APIs drift." />
+    <meta
+      property="og:description"
+      content="把 AI Coding Agent 依賴的 TypeScript 與 OpenAPI assumption 鎖進 repository，再讓 CI 重新驗算。"
+    />
+    <meta
+      property="og:image"
+      content="https://bm1016bm-svg.github.io/evidrift/assets/evidrift-hero.png"
+    />
+    <meta property="og:image:alt" content="Evidrift — AI dependency lockfile" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="stylesheet" href="./style.css" />
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Evidrift",
+        "applicationCategory": "DeveloperApplication",
+        "operatingSystem": "Windows, macOS, Linux",
+        "softwareVersion": "0.3.2",
+        "description": "Local-first CLI 與 MCP Server，用 deterministic evidence 在 CI 偵測 TypeScript API 與 OpenAPI contract drift。",
+        "url": "https://bm1016bm-svg.github.io/evidrift/zh-TW/",
+        "codeRepository": "https://github.com/bm1016bm-svg/evidrift",
+        "downloadUrl": "https://www.npmjs.com/package/evidrift",
+        "license": "https://www.mozilla.org/en-US/MPL/2.0/",
+        "programmingLanguage": "TypeScript",
+        "isAccessibleForFree": true,
+        "inLanguage": "zh-Hant-TW"
+      }
+    </script>
+  </head>
+  <body>
+    <div class="wrap">
+      <nav aria-label="主要導覽">
+        <a class="brand" href="./">Evidrift</a>
+        <div class="links">
+          <a href="#demo">快速開始</a>
+          <a href="./faq.html">FAQ</a>
+          <a href="./cases/typescript-signature-drift.html">完整案例</a>
+          <a lang="en" href="../">English</a>
+          <a href="https://github.com/bm1016bm-svg/evidrift">GitHub</a>
+        </div>
+      </nav>
+
+      <header>
+        <div class="eyebrow">AI dependency lockfile / local-first / deterministic</div>
+        <h1>程式能編譯。<br />API 仍會漂移。</h1>
+        <p class="lede">
+          Evidrift 把 Coding Agent 寫程式時依賴的 TypeScript 與 OpenAPI assumption 鎖進
+          repository，並在下一次 merge 前交給 CI 重新驗算。
+        </p>
+        <div class="actions">
+          <a class="button primary" href="#demo">10 秒看到 drift</a>
+          <a class="button" href="https://github.com/bm1016bm-svg/evidrift">★ GitHub</a>
+          <a class="button" href="https://www.npmjs.com/package/evidrift">npm</a>
+        </div>
+        <img
+          class="hero-image"
+          src="../assets/evidrift-hero.png"
+          width="1680"
+          height="945"
+          alt="Evidrift：Code compiles. APIs drift."
+        />
+      </header>
+
+      <main>
+        <section aria-labelledby="checks-title">
+          <div class="eyebrow">檢查什麼</div>
+          <h2 id="checks-title">一項 assumption。每次重新計算。</h2>
+          <p class="muted">
+            Receipt 是 repository file，不是可信任 verdict。Evidrift 每次都會重新載入 source，計算
+            deterministic contract，不信任儲存的 <code>matched</code> 或
+            <code>verified</code> flag。
+          </p>
+          <div class="grid">
+            <article class="card">
+              <span class="tag">typescript.symbol</span>
+              <h3>TypeScript API drift</h3>
+              <p>
+                記錄真實 call site 選到的 overload、parameter、normalized signature、installed
+                version、resolved declaration path 與 hash。
+              </p>
+            </article>
+            <article class="card">
+              <span class="tag">json.pointer</span>
+              <h3>OpenAPI contract drift</h3>
+              <p>
+                透過 RFC 6901 JSON Pointer，記錄 repository-local OpenAPI JSON 或 JSON Schema
+                中的一個 canonical value。
+              </p>
+            </article>
+            <article class="card">
+              <span class="tag">sha256</span>
+              <h3>Receipt tampering</h3>
+              <p>
+                把每張 Receipt 當成 hostile input，重新計算 content ID 與 evidence
+                hash，偵測手動修改與偽造。
+              </p>
+            </article>
+          </div>
+        </section>
+
+        <section id="demo" aria-labelledby="demo-title">
+          <div class="eyebrow">No signup. No API key. No cloud.</div>
+          <h2 id="demo-title">10 秒把它弄壞。</h2>
+          <pre><code>npx --yes evidrift@latest demo</code></pre>
+          <img
+            class="demo-image"
+            src="../assets/evidrift-demo.gif"
+            width="1200"
+            height="675"
+            loading="lazy"
+            alt="實際 Evidrift CLI demo：TypeScript contract 先通過，dependency signature 改變後產生 deterministic FAIL"
+          />
+          <p class="muted">
+            GIF 來自真實本機 CLI transcript。不執行 package code，不使用 cloud service 或 LLM
+            verdict。
+          </p>
+          <pre
+            aria-label="Deterministic failure 範例"
+          ><code><span class="fail">FAIL contract_mismatch</span> sha256:...
+Claim: parseConfig accepts an optional options parameter used by the demo.
+Expected signature: parseConfig(input:string,options?:ParseOptions):ParseResult
+Current signature: parseConfig(input:string,options:ParseOptions):ParseResult
+Affected code location: app/src/index.ts:3
+Receipt ID: sha256:...
+Action: Review the dependency change, then intentionally record new evidence.</code></pre>
+          <div class="actions">
+            <a class="button primary" href="./cases/typescript-signature-drift.html"
+              >閱讀完整案例</a
+            >
+            <a class="button" href="https://www.npmjs.com/package/evidrift">在 npm 查看</a>
+          </div>
+        </section>
+
+        <section aria-labelledby="difference-title">
+          <div class="eyebrow">不是另一個 AI reviewer</div>
+          <h2 id="difference-title">不能 deterministic，就不阻擋 CI。</h2>
+          <div class="comparison">
+            <div>
+              <h3>Evidrift 會做</h3>
+              <ul>
+                <li>記錄某個 code location 為何依賴一項 static contract；</li>
+                <li>透過 CLI、MCP 或 GitHub Actions 重新驗證同一份 evidence；</li>
+                <li>在 deterministic contract mismatch 或 evidence-integrity failure 時失敗；</li>
+                <li>source 改變但 selected contract 仍相同時只提出 warning。</li>
+              </ul>
+            </div>
+            <div>
+              <h3>Evidrift 不會做</h3>
+              <ul>
+                <li>證明 runtime correctness 或 free-text semantic truth；</li>
+                <li>抓取 arbitrary URL 或解析 remote OpenAPI reference；</li>
+                <li>執行 package code 或 Receipt 提供的 command；</li>
+                <li>把 LLM judge 當成 CI gate。</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <section aria-labelledby="next-title">
+          <div class="eyebrow">下一步</div>
+          <h2 id="next-title">從真實失敗開始。</h2>
+          <p class="lede">
+            先跑 demo，再決定是否把 Evidrift 加進 repository。翻譯的是說明文字；CLI command、Receipt
+            schema、error code、API name 與 machine-readable output 維持英文。
+          </p>
+          <div class="actions">
+            <a class="button primary" href="./faq.html">繁中 FAQ</a>
+            <a
+              class="button"
+              href="https://github.com/bm1016bm-svg/evidrift/blob/main/README.zh-TW.md"
+              >完整繁中 README</a
+            >
+          </div>
+        </section>
+      </main>
+
+      <footer>
+        <span>Evidrift v0.3.2 · MPL-2.0 · local-first</span>
+        <span>
+          <a href="../">English</a> ·
+          <a href="https://github.com/bm1016bm-svg/evidrift">GitHub</a> ·
+          <a href="https://www.npmjs.com/package/evidrift">npm</a>
+        </span>
+      </footer>
+    </div>
+  </body>
+</html>

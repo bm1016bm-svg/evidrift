@@ -47,6 +47,7 @@ test('npm tarball contains the executable surface and excludes source, tests, an
   for (const required of [
     'LICENSE',
     'README.md',
+    'README.zh-TW.md',
     'dist/src/cli.js',
     'dist/src/demo.js',
     'dist/src/index.js',

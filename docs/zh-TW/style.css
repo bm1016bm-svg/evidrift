@@ -1,0 +1,274 @@
+:root {
+  color-scheme: dark;
+  --bg: #090909;
+  --panel: #111;
+  --ink: #f4f4ef;
+  --muted: #a4a4a0;
+  --line: #2a2a27;
+  --accent: #d9ff67;
+  --danger: #ff786e;
+  --code: #0d1218;
+  font-family:
+    Inter, 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', ui-sans-serif, system-ui, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at 75% 0%, rgb(217 255 103 / 8%), transparent 34rem), var(--bg);
+  color: var(--ink);
+  line-height: 1.75;
+}
+
+a {
+  color: inherit;
+  text-decoration-color: rgb(217 255 103 / 55%);
+  text-underline-offset: 0.2em;
+}
+
+a:hover {
+  color: var(--accent);
+}
+
+.wrap {
+  width: min(1080px, calc(100% - 32px));
+  margin: 0 auto;
+}
+
+nav,
+footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+nav .brand {
+  color: var(--ink);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+}
+
+.links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  color: var(--muted);
+  font-size: 0.94rem;
+}
+
+header,
+section {
+  padding: clamp(56px, 9vw, 104px) 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow {
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.8rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.12;
+  letter-spacing: -0.035em;
+}
+
+h1 {
+  max-width: 900px;
+  margin-top: 18px;
+  font-size: clamp(3rem, 10vw, 7.5rem);
+}
+
+h2 {
+  margin: 12px 0 22px;
+  font-size: clamp(2rem, 5vw, 4rem);
+}
+
+h3 {
+  margin-bottom: 12px;
+  font-size: 1.25rem;
+}
+
+p,
+li {
+  max-width: 76ch;
+}
+
+.lede {
+  max-width: 720px;
+  margin: 26px 0;
+  color: var(--muted);
+  font-size: clamp(1.05rem, 2.4vw, 1.35rem);
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 28px 0;
+}
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  text-decoration: none;
+}
+
+.button.primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #101408;
+  font-weight: 800;
+}
+
+.hero-image,
+.demo-image {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: 34px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+}
+
+.grid,
+.comparison {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
+
+.comparison {
+  grid-template-columns: repeat(2, 1fr);
+}
+
+.card,
+.comparison > div,
+details {
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+}
+
+.tag {
+  display: inline-block;
+  margin-bottom: 22px;
+  color: var(--accent);
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 0.82rem;
+}
+
+pre {
+  max-width: 100%;
+  overflow-x: auto;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--code);
+  color: #e8eef5;
+  line-height: 1.55;
+}
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+}
+
+p code,
+li code {
+  padding: 0.1em 0.35em;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--code);
+}
+
+.fail {
+  color: var(--danger);
+  font-weight: 800;
+}
+
+.faq {
+  display: grid;
+  gap: 12px;
+}
+
+details summary {
+  cursor: pointer;
+  font-weight: 750;
+}
+
+details p {
+  margin-bottom: 0;
+  color: var(--muted);
+}
+
+.prose {
+  width: min(820px, 100%);
+}
+
+.prose h1 {
+  font-size: clamp(2.5rem, 7vw, 5rem);
+}
+
+.prose h2 {
+  margin-top: 52px;
+  font-size: clamp(1.55rem, 4vw, 2.4rem);
+}
+
+.prose blockquote {
+  margin: 28px 0;
+  padding: 4px 0 4px 18px;
+  border-left: 3px solid var(--accent);
+  color: var(--muted);
+}
+
+footer {
+  border-bottom: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 760px) {
+  nav,
+  footer {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .grid,
+  .comparison {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}

@@ -1,5 +1,7 @@
 # Evidrift — API drift checks for AI-generated TypeScript and OpenAPI code
 
+[English](README.md) | [繁體中文](README.zh-TW.md)
+
 [![CI](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml/badge.svg)](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/evidrift.svg)](https://www.npmjs.com/package/evidrift)
 [![Website](https://img.shields.io/badge/docs-GitHub%20Pages-111111.svg)](https://bm1016bm-svg.github.io/evidrift/)
@@ -143,7 +145,7 @@ Use all of them if they help. Evidrift covers one gap: the reason code was writt
 
 ### What is API drift?
 
-API drift is a change to a dependency or contract after code was written against it. Evidrift v0.3.1 checks two deterministic forms: the TypeScript call signature selected at an affected code location, and a canonical value selected from repository-local OpenAPI JSON or JSON Schema.
+API drift is a change to a dependency or contract after code was written against it. Evidrift v0.3.2 checks two deterministic forms: the TypeScript call signature selected at an affected code location, and a canonical value selected from repository-local OpenAPI JSON or JSON Schema.
 
 ### Is Evidrift a contract-testing tool?
 
@@ -155,7 +157,7 @@ Yes. They can call the local STDIO MCP server to create Receipts through the sha
 
 ### Does Evidrift fetch OpenAPI URLs or execute package code?
 
-No. The v0.3.1 adapters inspect installed TypeScript declarations and repository-local `.json` files. They do not fetch URLs, resolve remote `$ref`, import dependency JavaScript, or execute arbitrary commands.
+No. The v0.3.2 adapters inspect installed TypeScript declarations and repository-local `.json` files. They do not fetch URLs, resolve remote `$ref`, import dependency JavaScript, or execute arbitrary commands.
 
 ### Does Evidrift prove that AI-generated code is correct?
 

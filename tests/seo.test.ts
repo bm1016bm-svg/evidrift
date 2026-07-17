@@ -18,7 +18,10 @@ test('public metadata names the concrete API-drift use case consistently', async
   const serverJson = JSON.parse(
     await readFile(path.join(process.cwd(), 'server.json'), 'utf8'),
   ) as { description?: string };
-  const readme = await readFile(path.join(process.cwd(), 'README.md'), 'utf8');
+  const [readme, readmeZhTw] = await Promise.all([
+    readFile(path.join(process.cwd(), 'README.md'), 'utf8'),
+    readFile(path.join(process.cwd(), 'README.zh-TW.md'), 'utf8'),
+  ]);
 
   assert.equal(packageJson.homepage, SITE_URL);
   assert.match(packageJson.description ?? '', /TypeScript API/u);
@@ -29,6 +32,12 @@ test('public metadata names the concrete API-drift use case consistently', async
     readme,
     /^# Evidrift — API drift checks for AI-generated TypeScript and OpenAPI code$/mu,
   );
+  assert.match(readme, /\[繁體中文\]\(README\.zh-TW\.md\)/u);
+  assert.match(
+    readmeZhTw,
+    /^# Evidrift — 檢查 AI 產生的 TypeScript 與 OpenAPI 程式碼是否發生 API drift$/mu,
+  );
+  assert.match(readmeZhTw, /\[English\]\(README\.md\)/u);
 
   for (const keyword of [
     'api-drift',
@@ -43,6 +52,50 @@ test('public metadata names the concrete API-drift use case consistently', async
   ]) {
     assert.ok(packageJson.keywords?.includes(keyword), `npm metadata is missing ${keyword}`);
   }
+});
+
+test('Traditional Chinese docs are discoverable and keep machine interfaces stable', async () => {
+  const [readme, html, htmlZhTw, faqZhTw, caseZhTw, sitemap, llms] = await Promise.all([
+    readFile(path.join(process.cwd(), 'README.md'), 'utf8'),
+    readFile(path.join(process.cwd(), 'docs', 'index.html'), 'utf8'),
+    readFile(path.join(process.cwd(), 'docs', 'zh-TW', 'index.html'), 'utf8'),
+    readFile(path.join(process.cwd(), 'docs', 'zh-TW', 'faq.html'), 'utf8'),
+    readFile(
+      path.join(process.cwd(), 'docs', 'zh-TW', 'cases', 'typescript-signature-drift.html'),
+      'utf8',
+    ),
+    readFile(path.join(process.cwd(), 'docs', 'sitemap.xml'), 'utf8'),
+    readFile(path.join(process.cwd(), 'docs', 'llms.txt'), 'utf8'),
+  ]);
+
+  assert.match(readme, /README\.zh-TW\.md/u);
+  assert.match(html, /href="\.\/zh-TW\/"/u);
+  assert.match(html, /hreflang="zh-Hant"/u);
+  assert.match(htmlZhTw, /<html lang="zh-Hant-TW">/u);
+  assert.match(
+    htmlZhTw,
+    /<link rel="canonical" href="https:\/\/bm1016bm-svg\.github\.io\/evidrift\/zh-TW\/"/u,
+  );
+  assert.match(htmlZhTw, new RegExp(`"softwareVersion": "${EVIDRIFT_VERSION}"`));
+  assert.match(htmlZhTw, /npx --yes evidrift@latest demo/u);
+  assert.match(htmlZhTw, /Receipt/u);
+  assert.match(htmlZhTw, /typescript\.symbol/u);
+  assert.match(htmlZhTw, /json\.pointer/u);
+  assert.match(faqZhTw, /FAIL contract_mismatch/u);
+  assert.match(faqZhTw, /WARNING source_changed/u);
+  assert.match(faqZhTw, /evidrift check/u);
+  assert.match(caseZhTw, /TypeScript 編譯通過，但 dependency signature 已漂移/u);
+  assert.match(caseZhTw, /Expected signature:/u);
+  assert.match(caseZhTw, /Current signature:/u);
+  assert.match(caseZhTw, /Affected code location:/u);
+  assert.match(caseZhTw, /Receipt ID:/u);
+  assert.match(caseZhTw, /FAIL contract_mismatch/u);
+  assert.match(
+    sitemap,
+    /<loc>https:\/\/bm1016bm-svg\.github\.io\/evidrift\/zh-TW\/cases\/typescript-signature-drift\.html<\/loc>/u,
+  );
+  assert.match(llms, /Traditional Chinese README/u);
+  assert.match(llms, /zh-TW\/faq\.html/u);
 });
 
 test('GitHub Pages discovery files are internally aligned and machine readable', async () => {
