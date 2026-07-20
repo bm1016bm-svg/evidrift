@@ -139,3 +139,27 @@ test('the first-visit path leads with a real, lightweight CLI demo', async () =>
   assert.equal(gif.subarray(0, 6).toString('ascii'), 'GIF89a');
   assert.ok(gif.byteLength < 2 * 1024 * 1024, 'README demo GIF must stay under 2 MiB');
 });
+
+test('flagship documentation exposes scope, architecture, and a reproducible CI path', async () => {
+  const [readme, readmeZhTw, ciGuide] = await Promise.all([
+    readFile(path.join(process.cwd(), 'README.md'), 'utf8'),
+    readFile(path.join(process.cwd(), 'README.zh-TW.md'), 'utf8'),
+    readFile(path.join(process.cwd(), 'docs', 'ci.md'), 'utf8'),
+  ]);
+
+  assert.match(readme, /## Supported Today/u);
+  assert.match(readme, /## How It Works/u);
+  assert.match(readme, /```mermaid/u);
+  assert.match(readme, /## Add It to CI/u);
+  assert.match(readme, /npm run evidrift:check/u);
+  assert.match(readme, /YAML, URLs, remote `\$ref`/u);
+  assert.match(readmeZhTw, /## 目前支援範圍/u);
+  assert.match(readmeZhTw, /## 運作方式/u);
+  assert.match(readmeZhTw, /## 加入 CI/u);
+  assert.match(ciGuide, /permissions:\s+contents: read/su);
+  assert.match(ciGuide, /npm ci --ignore-scripts/u);
+  assert.match(ciGuide, /npm run evidrift:check/u);
+  for (const use of ciGuide.matchAll(/^\s*uses:\s*(\S+)$/gmu)) {
+    assert.match(use[1] ?? '', /@[a-f0-9]{40}$/u, `Documented Action is not pinned: ${use[1]}`);
+  }
+});

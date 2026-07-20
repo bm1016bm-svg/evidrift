@@ -16,11 +16,11 @@ It deterministically catches selected TypeScript overload and parameter drift, r
 
 ![Evidrift — AI dependency lockfile](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-hero.png)
 
-[![Real Evidrift CLI demo: a dependency contract passes, its TypeScript signature changes, and Evidrift catches the drift before merge](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-demo.gif)](#quick-start--try-it-in-10-seconds)
+[![Real Evidrift CLI demo: a dependency contract passes, its TypeScript signature changes, and Evidrift catches the drift before merge](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-demo.gif)](#quick-start--see-drift-in-one-command)
 
 The animation is rendered from a [captured CLI transcript](https://github.com/bm1016bm-svg/evidrift/blob/main/docs/assets/evidrift-demo-transcript.txt). The PASS, changed signatures, affected file, and deterministic FAIL come from an actual local `evidrift demo` run; only the scene headings are editorial.
 
-## Quick Start — Try It in 10 Seconds
+## Quick Start — See Drift in One Command
 
 Requires Node.js 22 or newer. Nothing to install globally:
 
@@ -31,6 +31,15 @@ npx --yes evidrift@latest demo
 The command creates a disposable local fixture, records the optional `options` parameter on `parseConfig`, checks it successfully, changes the fixture so `options` is required, then proves that `evidrift check` catches the mismatch. It runs no downloaded package code.
 
 **If that is a failure you want caught before merge, [star Evidrift on GitHub](https://github.com/bm1016bm-svg/evidrift).**
+
+## Supported Today
+
+| Surface                          | Deterministic evidence                                                  | Status             |
+| -------------------------------- | ----------------------------------------------------------------------- | ------------------ |
+| Installed TypeScript dependency  | Selected call signature, parameter, package version, and declaration    | Supported          |
+| Repository OpenAPI / JSON Schema | Canonical value selected through an RFC 6901 JSON Pointer               | Supported for JSON |
+| CLI and local STDIO MCP          | The same record and revalidation core                                   | Supported          |
+| YAML, URLs, remote `$ref`        | None; Evidrift refuses these inputs instead of making an unsafe promise | Not supported      |
 
 ## Installation — Add It to a Repository
 
@@ -84,6 +93,23 @@ JSON Pointer follows RFC 6901, including `~1` for `/` and `~0` for `~`. Evidrift
 
 Coding agents call the same core through `evidrift_record` and `evidrift_record_json_pointer`. Minimal [Codex, Claude Code, and Cursor setup](docs/mcp.md) is included.
 
+## How It Works
+
+```mermaid
+flowchart LR
+  Author["Coding agent or developer"] --> Record["Record one assumption"]
+  Record --> Adapter["TypeScript or JSON adapter"]
+  Adapter --> Receipt["Content-addressed Receipt"]
+  Receipt --> Review["Git review"]
+  Review --> Check["evidrift check in CI"]
+  Check --> Result{"Contract still matches?"}
+  Result -->|Yes| Pass["PASS"]
+  Result -->|Source unavailable| Warn["WARNING"]
+  Result -->|No or tampered| Fail["FAIL"]
+```
+
+The CLI and MCP server are thin entry points over the same core. The complete component map, check policy, resource bounds, and trust boundary are documented in [Architecture](docs/architecture.md).
+
 ## The Files
 
 Evidrift writes one lock and one immutable JSON file per Receipt:
@@ -106,6 +132,27 @@ There is no `.evidrift/receipts.json`. `evidence.lock` contains only content-add
 
 Each Receipt stores the claim and affected code plus one deterministic contract: an installed TypeScript symbol signature, or a repository JSON path, pointer, canonical value, and hashes. See the [Receipt schema](docs/receipt-schema.md).
 
+## Add It to CI
+
+Pin Evidrift as a development dependency and expose one stable package script:
+
+```json
+{
+  "scripts": {
+    "evidrift:check": "evidrift check"
+  }
+}
+```
+
+After `npm ci`, make that script a required CI step:
+
+```yaml
+- name: Revalidate Evidrift receipts
+  run: npm run evidrift:check
+```
+
+The complete [GitHub Actions setup](docs/ci.md) uses read-only permissions, locked npm dependencies, and commit-pinned Actions.
+
 ## CI Behavior
 
 `evidrift check` does not trust saved `matched` or `verified` flags. It validates the Receipt, reloads the source, and recomputes the selected signature or JSON value.
@@ -127,7 +174,7 @@ Receipt ID: sha256:...
 Action: Do not trust or hand-edit this Receipt. Restore it from version control, or intentionally create a new Receipt with `evidrift record`.
 ```
 
-The included GitHub Actions workflow runs the full gate on Node.js 22 and 24. Third-party Actions are pinned to full commit SHAs.
+The project workflow runs the full gate on Linux and Windows with Node.js 22 and 24. Third-party Actions are pinned to full commit SHAs.
 
 In a human TTY, `check`, `diff`, `explain`, and `demo` use a spinner plus green `✅`, yellow `⚠`, and red `❌` status output. Redirected output, CI, `TERM=dumb`, and `NO_COLOR` stay ANSI-free and keep the stable plain-text format used by agents and tests.
 
@@ -145,7 +192,7 @@ Use all of them if they help. Evidrift covers one gap: the reason code was writt
 
 ### What is API drift?
 
-API drift is a change to a dependency or contract after code was written against it. Evidrift v0.3.2 checks two deterministic forms: the TypeScript call signature selected at an affected code location, and a canonical value selected from repository-local OpenAPI JSON or JSON Schema.
+API drift is a change to a dependency or contract after code was written against it. Evidrift v0.3.3 checks two deterministic forms: the TypeScript call signature selected at an affected code location, and a canonical value selected from repository-local OpenAPI JSON or JSON Schema.
 
 ### Is Evidrift a contract-testing tool?
 
@@ -157,7 +204,7 @@ Yes. They can call the local STDIO MCP server to create Receipts through the sha
 
 ### Does Evidrift fetch OpenAPI URLs or execute package code?
 
-No. The v0.3.2 adapters inspect installed TypeScript declarations and repository-local `.json` files. They do not fetch URLs, resolve remote `$ref`, import dependency JavaScript, or execute arbitrary commands.
+No. The v0.3.3 adapters inspect installed TypeScript declarations and repository-local `.json` files. They do not fetch URLs, resolve remote `$ref`, import dependency JavaScript, or execute arbitrary commands.
 
 ### Does Evidrift prove that AI-generated code is correct?
 

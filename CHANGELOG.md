@@ -6,6 +6,24 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 No changes yet.
 
+## [0.3.3] - 2026-07-20
+
+### Added
+
+- An inline architecture flow that connects coding-agent assumptions, content-addressed Receipts, Git review, and deterministic CI outcomes.
+- A copy-pasteable GitHub Actions adoption guide with read-only permissions, locked npm installation, and commit-pinned Actions.
+- Regression tests that keep the public support scope, architecture, CI instructions, and cross-platform CI matrix aligned.
+
+### Changed
+
+- Project CI now runs the complete release gate on Linux and Windows with Node.js 22 and 24.
+- English and Traditional Chinese first-visit documentation now state the supported and deliberately unsupported surfaces explicitly.
+- The demo promise now describes a reproducible one-command path instead of making a network-dependent timing claim.
+
+### Not included
+
+- No Receipt schema, verification policy, network access, cloud service, or runtime-correctness claim changed in this release.
+
 ## [0.3.2] - 2026-07-17
 
 ### Added

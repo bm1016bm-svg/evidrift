@@ -122,3 +122,19 @@ test('release, npm, and official MCP Registry metadata stay version-aligned', as
     assert.match(use[1] ?? '', /@[a-f0-9]{40}$/u, `Action is not pinned: ${use[1]}`);
   }
 });
+
+test('CI verifies supported Node releases on Linux and Windows', async () => {
+  const workflow = await readFile(
+    path.join(process.cwd(), '.github', 'workflows', 'ci.yml'),
+    'utf8',
+  );
+
+  assert.match(workflow, /runs-on: \$\{\{ matrix\.os \}\}/u);
+  assert.match(workflow, /os: \[ubuntu-latest, windows-latest\]/u);
+  assert.match(workflow, /node: \[22, 24\]/u);
+  assert.match(workflow, /run: npm ci --ignore-scripts/u);
+  assert.match(workflow, /run: npm run verify/u);
+  for (const use of workflow.matchAll(/^\s*uses:\s*(\S+)$/gmu)) {
+    assert.match(use[1] ?? '', /@[a-f0-9]{40}$/u, `Action is not pinned: ${use[1]}`);
+  }
+});

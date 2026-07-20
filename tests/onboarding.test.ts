@@ -10,7 +10,7 @@ const cli = path.resolve(process.cwd(), 'dist', 'src', 'cli.js');
 test('running Evidrift without arguments is a successful, copy-pasteable onboarding path', () => {
   const result = spawnSync(process.execPath, [cli], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr);
-  assert.match(result.stdout, /Try it in 10 seconds/u);
+  assert.match(result.stdout, /See deterministic drift in one command/u);
   assert.match(result.stdout, /npx --yes evidrift@latest demo/u);
   assert.match(result.stdout, /evidrift init/u);
   assert.equal(result.stderr, '');

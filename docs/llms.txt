@@ -30,6 +30,7 @@
 - Traditional Chinese FAQ: https://bm1016bm-svg.github.io/evidrift/zh-TW/faq.html
 - Traditional Chinese TypeScript signature-drift case: https://bm1016bm-svg.github.io/evidrift/zh-TW/cases/typescript-signature-drift.html
 - Architecture and trust boundaries: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/architecture.md
+- GitHub Actions setup: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/ci.md
 - Receipt schema: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/receipt-schema.md
 - User acceptance tests: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/UAT.md
 - TypeScript overload boss fight: https://github.com/bm1016bm-svg/evidrift/blob/main/examples/boss-fight-test/README.md
