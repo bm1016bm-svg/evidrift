@@ -12,11 +12,12 @@ No changes yet.
 
 - An inline architecture flow that connects coding-agent assumptions, content-addressed Receipts, Git review, and deterministic CI outcomes.
 - A copy-pasteable GitHub Actions adoption guide with read-only permissions, locked npm installation, and commit-pinned Actions.
-- Regression tests that keep the public support scope, architecture, CI instructions, and cross-platform CI matrix aligned.
+- Regression tests that keep the public support scope, architecture, CI instructions, cross-platform CI matrix, and canonical repository-root handling aligned.
 
 ### Changed
 
 - Project CI now runs the complete release gate on Linux and Windows with Node.js 22 and 24.
+- Storage containment checks now compare canonical repository and evidence paths, avoiding false escape reports when a Windows runner exposes the repository through a junction or alias.
 - English and Traditional Chinese first-visit documentation now state the supported and deliberately unsupported surfaces explicitly.
 - The demo promise now describes a reproducible one-command path instead of making a network-dependent timing claim.
 

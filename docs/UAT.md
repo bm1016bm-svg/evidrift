@@ -17,11 +17,11 @@ npm run uat
 Local v0.3.3 flagship-release checkpoint on 2026-07-20:
 
 - Platform: Windows, Node.js `v24.13.0`, npm `11.6.2`.
-- Automated result: `npm run verify` passed 62/62 tests with 0 failures and 0 skips, then passed the end-to-end smoke test and repository Receipt check. Formatting, lint, typecheck, and release metadata alignment at `v0.3.3` also passed.
+- Automated result: `npm run verify` passed 63/63 tests with 0 failures and 0 skips, then passed the end-to-end smoke test and repository Receipt check. Formatting, lint, typecheck, and release metadata alignment at `v0.3.3` also passed.
 - Cross-platform gate: the CI matrix covers `ubuntu-latest` and `windows-latest` with Node.js 22 and 24. The local Windows run passed; GitHub Actions remains the authoritative Linux and clean-checkout result.
 - Packed-install result: a fresh isolated consumer installed `evidrift-0.3.3.tgz`; `--version` returned `0.3.3`, bare invocation exposed the one-command demo, `init` created `.evidrift/`, and `demo` reproduced deterministic PASS-to-FAIL drift.
 - Package-content result: the tarball contains 64 entries, including both READMEs and the CLI/MCP entrypoints, while excluding `src`, `tests`, and `examples`.
-- Pack result: 58,351 packed bytes, 256,275 unpacked bytes, SHA-256 `42b60686bdcb551208653f2b9b8d52ea875275ccd8838b5a5256a6022946dc61`. The counts and sizes come from `npm pack --json`; the hash comes from PowerShell `Get-FileHash` against that exact tarball.
+- Pack result: 58,425 packed bytes, 256,600 unpacked bytes, SHA-256 `cc3a95f7637d61cfdcefed76d0dbc7077141a1a3206a52d9a9ffb4049d5aef91`. The counts and sizes come from `npm pack --json`; the hash comes from PowerShell `Get-FileHash` against that exact tarball.
 - Dependency advisory result: the isolated consumer's official-registry install audited 113 packages and reported 0 known vulnerabilities. This is registry output, not proof that the code has no vulnerability.
 
 Local v0.3.2 bilingual-release checkpoint on 2026-07-17:
