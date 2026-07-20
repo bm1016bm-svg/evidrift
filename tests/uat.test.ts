@@ -17,6 +17,7 @@ import path from 'node:path';
 import { test, type TestContext } from 'node:test';
 
 import { canonicalStringify, contentHash } from '../src/canonical.js';
+import type { CheckReport } from '../src/report.js';
 import type { EvidenceLock, Receipt, ReceiptPayload } from '../src/types.js';
 import { createFixtureRepository, DRIFTED_DECLARATION, type FixtureRepository } from './helpers.js';
 
@@ -136,6 +137,49 @@ test('UAT: init, record, check, diff, explain, and signature drift work end to e
     assert.ok(drift.includes(field), `Missing ${field} in:\n${drift}`);
   }
   assert.match(runCli(['diff', '--root', fixture.root], 0).stdout, /FAIL contract_mismatch/);
+});
+
+test('UAT: check emits versioned JSON with unchanged exit-code semantics', async (t) => {
+  const fixture = await fixtureFor(t);
+  runCli(['init', '--root', fixture.root], 0);
+  const recorded = runCli(recordArguments(fixture), 0);
+  const id = receiptIdFrom(recorded.stdout);
+  const file = receiptPath(fixture.root, id);
+
+  const baselineResult = runCli(['check', '--root', fixture.root, '--format', 'json'], 0);
+  const baseline = JSON.parse(baselineResult.stdout) as CheckReport;
+  assert.equal(baselineResult.stderr, '');
+  assert.equal(baseline.schemaVersion, 1);
+  assert.deepEqual(baseline.tool, { name: 'evidrift', version: '0.3.3' });
+  assert.equal(baseline.command, 'check');
+  assert.equal(baseline.exitCode, 0);
+  assert.deepEqual(baseline.summary, { pass: 1, warning: 0, fail: 0 });
+  assert.equal(baseline.results[0]?.receiptId, id);
+  assert.equal(baseline.results[0]?.status, 'pass');
+  assert.equal(baselineResult.stdout.includes(fixture.root), false);
+
+  await writeFile(path.join(fixture.dependency, 'index.d.ts'), DRIFTED_DECLARATION);
+  const driftResult = runCli(['check', '--root', fixture.root, '--format', 'json'], 1);
+  const drift = JSON.parse(driftResult.stdout) as CheckReport;
+  assert.equal(driftResult.stderr, '');
+  assert.equal(drift.exitCode, 1);
+  assert.deepEqual(drift.summary, { pass: 0, warning: 0, fail: 1 });
+  assert.equal(drift.results[0]?.status, 'contract_mismatch');
+  assert.deepEqual(drift.results[0]?.affectedCode, { path: 'app/src/index.ts', line: 2 });
+
+  const receipt = JSON.parse(await readFile(file, 'utf8')) as Receipt;
+  receipt.claim = 'Hand-edited claim.';
+  await writeFile(file, `${JSON.stringify(receipt)}\n`);
+  const integrityResult = runCli(['check', '--root', fixture.root, '--format', 'json'], 2);
+  const integrity = JSON.parse(integrityResult.stdout) as CheckReport;
+  assert.equal(integrityResult.stderr, '');
+  assert.equal(integrity.exitCode, 2);
+  assert.deepEqual(integrity.summary, { pass: 0, warning: 0, fail: 1 });
+  assert.equal(integrity.results[0]?.status, 'integrity_error');
+
+  const invalidFormat = runCli(['check', '--root', fixture.root, '--format', 'yaml'], 2);
+  assert.equal(invalidFormat.stdout, '');
+  assert.match(invalidFormat.stderr, /^ERROR: Option --format must be text or json\./u);
 });
 
 test('UAT: editing one line of a Receipt is blocked with a readable recovery action', async (t) => {

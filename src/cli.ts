@@ -15,6 +15,7 @@ import { runSignatureDriftDemo } from './demo.js';
 import { runMcpServer } from './mcp.js';
 import { assertSafeRelativePath } from './paths.js';
 import { renderCheck, renderDemo, renderExplain, renderRecord, renderResult } from './output.js';
+import { renderCheckReport } from './report.js';
 import { interactiveTerminalEnabled, withTerminalProgress } from './terminal.js';
 import { escapeOutputText } from './text.js';
 import { EVIDRIFT_VERSION, type AffectedCode } from './types.js';
@@ -30,7 +31,7 @@ Usage:
                --claim <text> --code <path[:line]> [--project <path>] [--root <repo>]
   evidrift record --json <path> --pointer <RFC6901> --claim <text> --code <path[:line]>
                [--root <repo>]
-  evidrift check [--root <repo>]
+  evidrift check [--format text|json] [--root <repo>]
   evidrift diff [--root <repo>]
   evidrift explain <receipt-id> [--root <repo>]
   evidrift demo [--root <directory>]
@@ -45,6 +46,8 @@ interface ParsedArguments {
   help: boolean;
   version: boolean;
 }
+
+type CheckOutputFormat = 'text' | 'json';
 
 function parseArguments(argv: string[]): ParsedArguments {
   const positionals: string[] = [];
@@ -126,6 +129,14 @@ function positiveIntegerOption(parsed: ParsedArguments, name: string): number | 
     throw new Error(`Option --${name} must be a positive safe integer.`);
   }
   return parsedValue;
+}
+
+function checkOutputFormat(parsed: ParsedArguments): CheckOutputFormat {
+  const value = option(parsed, 'format') ?? 'text';
+  if (value !== 'text' && value !== 'json') {
+    throw new Error('Option --format must be text or json.');
+  }
+  return value;
 }
 
 export async function runCli(argv: string[]): Promise<number> {
@@ -230,14 +241,20 @@ export async function runCli(argv: string[]): Promise<number> {
       return 0;
     }
     case 'check': {
-      ensureOptions(parsed, ['root']);
+      ensureOptions(parsed, ['format', 'root']);
       if (parsed.positionals.length > 0) {
         throw new Error('evidrift check does not accept positional arguments.');
       }
-      const results = await withTerminalProgress('Revalidating Evidrift evidence…', () =>
-        checkRepository(repoRoot),
+      const format = checkOutputFormat(parsed);
+      const results =
+        format === 'json'
+          ? await checkRepository(repoRoot)
+          : await withTerminalProgress('Revalidating Evidrift evidence…', () =>
+              checkRepository(repoRoot),
+            );
+      console.log(
+        format === 'json' ? renderCheckReport(results) : renderCheck(results, renderOptions),
       );
-      console.log(renderCheck(results, renderOptions));
       return checkExitCode(results);
     }
     case 'diff': {

@@ -300,7 +300,7 @@ export async function explainEvidence(
   return checkReceipt(repoRoot, receipt);
 }
 
-export function checkExitCode(results: readonly CheckResult[]): number {
+export function checkExitCode(results: readonly CheckResult[]): 0 | 1 | 2 {
   if (results.some((result) => result.status === 'integrity_error')) {
     return 2;
   }

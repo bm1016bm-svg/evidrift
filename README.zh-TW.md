@@ -167,6 +167,14 @@ Evidrift 會寫入一份 lock，以及每張 Receipt 對應的一個 immutable J
 | `FAIL contract_mismatch`  | Selected TypeScript signature 或 JSON value 改變／消失        |    1 |
 | `FAIL evidence_integrity` | Lock 或 Receipt malformed、遺失、偽造，或 content hash 不正確 |    2 |
 
+CI system、Coding Agent 或其他工具可以要求版本化 JSON report，exit code 維持不變：
+
+```bash
+npx evidrift check --format json
+```
+
+Report 會包含 `schemaVersion`、Evidrift version、summary count，以及依 lock 順序排列的 `CheckResult` object。它不含 timestamp 或 absolute repository root，因此相同結果會產生相同序列化內容。請參考英文版 [JSON check report contract](docs/check-report.md)。
+
 如果直接手改 Receipt，輸出會是可處置的 integrity report，而不是混亂的 stack trace：
 
 ```text
@@ -221,7 +229,7 @@ evidrift init
 evidrift record --project <path> --package <name> --symbol <name> \
   [--parameter <name>] [--overload <number>] --claim <text> --code <path[:line]>
 evidrift record --json <path> --pointer <RFC6901> --claim <text> --code <path[:line]>
-evidrift check
+evidrift check [--format text|json]
 evidrift diff
 evidrift explain <receipt-id>
 evidrift demo

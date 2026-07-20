@@ -64,3 +64,13 @@ The workflow grants read-only repository access. It installs from the committed 
 - Exit `2`: the lock or a Receipt is malformed, missing, forged, or hash-invalid.
 
 Warnings are intentionally non-blocking. Review them in logs; Evidrift only blocks when it has a deterministic mismatch or integrity failure.
+
+## Machine-readable report
+
+Use the versioned JSON format when another CI step or coding agent needs structured results:
+
+```bash
+npx evidrift check --format json > evidrift-report.json
+```
+
+The command preserves the normal `0`, `1`, and `2` exit codes, writes only JSON to standard output, and disables interactive progress. See the [JSON check report contract](check-report.md) for the field definitions and compatibility policy.
