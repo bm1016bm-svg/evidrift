@@ -316,7 +316,11 @@ async function assertSafeDirectory(
   if (!metadata.isDirectory() || metadata.isSymbolicLink()) {
     throw new IntegrityError(`${label} must be a real directory, not a symlink.`);
   }
-  if (!isInside(path.resolve(repoRoot), await realpath(directory))) {
+  const [resolvedRepoRoot, resolvedDirectory] = await Promise.all([
+    realpath(repoRoot),
+    realpath(directory),
+  ]);
+  if (!isInside(resolvedRepoRoot, resolvedDirectory)) {
     throw new IntegrityError(`${label} resolves outside the repository.`);
   }
 }
@@ -358,8 +362,8 @@ async function readUntrustedJson(
   if (!metadata.isFile() || metadata.isSymbolicLink()) {
     throw new IntegrityError(`${label} must be a regular file, not a symlink.`);
   }
-  const resolved = await realpath(filePath);
-  if (!isInside(path.resolve(repoRoot), resolved)) {
+  const [resolvedRepoRoot, resolved] = await Promise.all([realpath(repoRoot), realpath(filePath)]);
+  if (!isInside(resolvedRepoRoot, resolved)) {
     throw new IntegrityError(`${label} resolves outside the repository.`);
   }
   if (metadata.size > maximumBytes) {

@@ -16,11 +16,11 @@ Evidrift 能確定性偵測指定的 TypeScript overload／parameter drift、透
 
 ![Evidrift — AI dependency lockfile](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-hero.png)
 
-[![實際 Evidrift CLI demo：dependency contract 先通過，TypeScript signature 改變後在 merge 前被攔下](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-demo.gif)](#快速開始--10-秒看到-drift)
+[![實際 Evidrift CLI demo：dependency contract 先通過，TypeScript signature 改變後在 merge 前被攔下](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-demo.gif)](#快速開始--用一個指令看到-drift)
 
 這段動畫由[實際擷取的 CLI transcript](https://github.com/bm1016bm-svg/evidrift/blob/main/docs/assets/evidrift-demo-transcript.txt)產生。`PASS`、改變前後的 signature、affected file 與 deterministic `FAIL` 都來自本機執行的 `evidrift demo`；只有場景標題是後製文字。
 
-## 快速開始 — 10 秒看到 drift
+## 快速開始 — 用一個指令看到 drift
 
 需要 Node.js 22 或更新版本。不必全域安裝：
 
@@ -33,6 +33,15 @@ npx --yes evidrift@latest demo
 **如果你也想在 merge 前攔下這類錯誤，可以在 [GitHub 上替 Evidrift 加星](https://github.com/bm1016bm-svg/evidrift)。**
 
 完整推演請看：[TypeScript 編譯通過，但 dependency signature 已漂移](https://bm1016bm-svg.github.io/evidrift/zh-TW/cases/typescript-signature-drift.html)。
+
+## 目前支援範圍
+
+| Surface                          | Deterministic evidence                                             | 狀態      |
+| -------------------------------- | ------------------------------------------------------------------ | --------- |
+| 已安裝的 TypeScript dependency   | Selected call signature、parameter、package version 與 declaration | 支援      |
+| Repository OpenAPI / JSON Schema | 透過 RFC 6901 JSON Pointer 選取的 canonical value                  | 支援 JSON |
+| CLI 與 local STDIO MCP           | 共用相同的 record 與 revalidation core                             | 支援      |
+| YAML、URL、remote `$ref`         | 無；Evidrift 會拒絕輸入，不會做出不安全的保證                      | 不支援    |
 
 ## 安裝 — 加入現有 Repository
 
@@ -86,6 +95,23 @@ JSON Pointer 遵循 RFC 6901，其中 `~1` 代表 `/`、`~0` 代表 `~`。Evidri
 
 Coding Agent 透過 `evidrift_record` 與 `evidrift_record_json_pointer` 呼叫相同核心。Repository 包含 [Codex、Claude Code 與 Cursor 的最小 MCP 設定](docs/mcp.md)。
 
+## 運作方式
+
+```mermaid
+flowchart LR
+  Author["Coding Agent 或開發者"] --> Record["記錄一項 assumption"]
+  Record --> Adapter["TypeScript 或 JSON adapter"]
+  Adapter --> Receipt["Content-addressed Receipt"]
+  Receipt --> Review["Git review"]
+  Review --> Check["CI 執行 evidrift check"]
+  Check --> Result{"Contract 仍相同？"}
+  Result -->|是| Pass["PASS"]
+  Result -->|Source 無法使用| Warn["WARNING"]
+  Result -->|否或遭竄改| Fail["FAIL"]
+```
+
+CLI 與 MCP Server 都是相同 core 的入口。完整 component map、check policy、resource bound 與 trust boundary 請參考英文版 [Architecture](docs/architecture.md)。
+
 ## 產生的檔案
 
 Evidrift 會寫入一份 lock，以及每張 Receipt 對應的一個 immutable JSON file：
@@ -108,6 +134,27 @@ Evidrift 會寫入一份 lock，以及每張 Receipt 對應的一個 immutable J
 
 每張 Receipt 會保存 claim、affected code，以及一項 deterministic contract：已安裝 TypeScript symbol signature，或 repository JSON path、pointer、canonical value 與 hashes。請參考英文版 [Receipt schema](docs/receipt-schema.md)。
 
+## 加入 CI
+
+把 Evidrift 固定為 development dependency，並提供穩定的 package script：
+
+```json
+{
+  "scripts": {
+    "evidrift:check": "evidrift check"
+  }
+}
+```
+
+在 `npm ci` 後把它設為必要 CI step：
+
+```yaml
+- name: Revalidate Evidrift receipts
+  run: npm run evidrift:check
+```
+
+完整 [GitHub Actions 設定](docs/ci.md)使用 read-only permission、鎖定的 npm dependency 與固定到 commit 的 Actions。
+
 ## CI 行為
 
 `evidrift check` 不信任儲存的 `matched` 或 `verified` flag。它會驗證 Receipt、重新載入來源，再計算 selected signature 或 JSON value。
@@ -129,7 +176,7 @@ Receipt ID: sha256:...
 Action: Do not trust or hand-edit this Receipt. Restore it from version control, or intentionally create a new Receipt with `evidrift record`.
 ```
 
-內附的 GitHub Actions workflow 會在 Node.js 22 與 24 執行完整 gate。第三方 Actions 全部固定到完整 commit SHA。
+專案的 GitHub Actions workflow 會在 Linux 與 Windows 使用 Node.js 22、24 執行完整 gate。第三方 Actions 全部固定到完整 commit SHA。
 
 在人類操作的 TTY 中，`check`、`diff`、`explain` 與 `demo` 會顯示 spinner 和綠色 `✅`、黃色 `⚠`、紅色 `❌` 狀態。Redirected output、CI、`TERM=dumb` 與 `NO_COLOR` 會維持無 ANSI 的穩定純文字格式，方便 Coding Agent 與測試解析。
 
@@ -147,7 +194,7 @@ Action: Do not trust or hand-edit this Receipt. Restore it from version control,
 
 ### 什麼是 API drift？
 
-API drift 是 dependency 或 contract 在消費端程式寫完後發生改變。Evidrift v0.3.2 檢查兩種 deterministic evidence：affected code location 實際選到的 TypeScript call signature，以及 repository-local OpenAPI JSON 或 JSON Schema 中選定的 canonical value。
+API drift 是 dependency 或 contract 在消費端程式寫完後發生改變。Evidrift v0.3.3 檢查兩種 deterministic evidence：affected code location 實際選到的 TypeScript call signature，以及 repository-local OpenAPI JSON 或 JSON Schema 中選定的 canonical value。
 
 ### Evidrift 是 contract-testing tool 嗎？
 
@@ -159,7 +206,7 @@ API drift 是 dependency 或 contract 在消費端程式寫完後發生改變。
 
 ### Evidrift 會抓 OpenAPI URL 或執行 package code 嗎？
 
-不會。v0.3.2 adapters 只檢查已安裝的 TypeScript declaration 與 repository-local `.json` file；不會抓 URL、解析 remote `$ref`、import dependency JavaScript 或執行 arbitrary command。
+不會。v0.3.3 adapters 只檢查已安裝的 TypeScript declaration 與 repository-local `.json` file；不會抓 URL、解析 remote `$ref`、import dependency JavaScript 或執行 arbitrary command。
 
 ### Evidrift 能證明 AI 產生的程式碼正確嗎？
 

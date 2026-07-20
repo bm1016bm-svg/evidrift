@@ -21,7 +21,7 @@ import { EVIDRIFT_VERSION, type AffectedCode } from './types.js';
 
 const HELP = `Evidrift ${EVIDRIFT_VERSION} - catch API drift in AI-generated code
 
-Try it in 10 seconds (nothing to install):
+See deterministic drift in one command (nothing to install globally):
   npx --yes evidrift@latest demo
 
 Usage:

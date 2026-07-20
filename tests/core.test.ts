@@ -5,6 +5,7 @@ import path from 'node:path';
 import { test } from 'node:test';
 
 import { checkExitCode, checkRepository, initEvidrift, recordEvidence } from '../src/core.js';
+import { readEvidenceLock } from '../src/storage.js';
 import type { Receipt, TypeScriptSymbolEvidence } from '../src/types.js';
 import { changeFixtureVersion, createFixtureRepository, DRIFTED_DECLARATION } from './helpers.js';
 
@@ -395,6 +396,31 @@ test('JSON Pointer evidence refuses a linked source outside the repository', asy
     }),
     /resolves outside the repository/u,
   );
+});
+
+test('storage checks canonicalize an aliased repository root', async (t) => {
+  const fixture = await createFixtureRepository();
+  const aliasParent = await mkdtemp(path.join(tmpdir(), 'evidrift-root-alias-'));
+  const alias = path.join(aliasParent, 'repository');
+  t.after(async () => rm(aliasParent, { recursive: true, force: true }));
+  try {
+    await symlink(fixture.root, alias, process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (error) {
+    if (
+      error !== null &&
+      typeof error === 'object' &&
+      'code' in error &&
+      (error as { code?: unknown }).code === 'EPERM'
+    ) {
+      t.skip('The current Windows account cannot create repository aliases.');
+      return;
+    }
+    throw error;
+  }
+
+  await initEvidrift(fixture.root);
+  const lock = await readEvidenceLock(alias);
+  assert.deepEqual(lock.receipts, []);
 });
 
 test('overload sets are resource-bounded before candidate rendering', async () => {

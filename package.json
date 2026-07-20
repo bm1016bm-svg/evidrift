@@ -1,6 +1,6 @@
 {
   "name": "evidrift",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "mcpName": "io.github.bm1016bm-svg/evidrift",
   "description": "Catch TypeScript API and OpenAPI contract drift in AI-generated code. Local-first CLI and MCP server that revalidates assumptions in CI.",
   "keywords": [
