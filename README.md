@@ -166,6 +166,14 @@ The complete [GitHub Actions setup](docs/ci.md) uses read-only permissions, lock
 | `FAIL contract_mismatch`  | Selected TypeScript signature or JSON value changed/disappeared    |    1 |
 | `FAIL evidence_integrity` | Lock or Receipt is malformed, missing, forged, or hash-invalid     |    2 |
 
+For CI systems, coding agents, and other tools, request a versioned JSON report without changing those exit codes:
+
+```bash
+npx evidrift check --format json
+```
+
+The report includes `schemaVersion`, the Evidrift version, summary counts, and the ordered `CheckResult` objects. It contains no timestamp or absolute repository root, so equal results serialize identically. See the [JSON check report contract](docs/check-report.md).
+
 A one-line manual edit to a Receipt produces an actionable integrity report:
 
 ```text
@@ -218,7 +226,7 @@ evidrift init
 evidrift record --project <path> --package <name> --symbol <name> \
   [--parameter <name>] [--overload <number>] --claim <text> --code <path[:line]>
 evidrift record --json <path> --pointer <RFC6901> --claim <text> --code <path[:line]>
-evidrift check
+evidrift check [--format text|json]
 evidrift diff
 evidrift explain <receipt-id>
 evidrift demo

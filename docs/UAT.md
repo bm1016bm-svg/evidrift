@@ -125,6 +125,7 @@ Test counts and pack sizes come only from their final command output. Registry v
 | UAT-57 | Run Evidrift without a command                                 | Exit `0` and show one copy-pasteable ten-second demo command                             | onboarding test                       |
 | UAT-58 | Initialize a fresh repository                                  | Create storage and print concrete agent, commit, CI, and demo next steps                 | onboarding and packed-install UAT     |
 | UAT-59 | Regenerate the public demo asset                               | Real transcript contains PASS, changed signatures, affected code, and deterministic FAIL | SEO/discovery test and capture script |
+| UAT-60 | Run `check --format json` for match, drift, and tampering      | Versioned JSON preserves structured results and exit codes `0`, `1`, and `2`             | JSON-report unit and CLI UAT tests    |
 
 ## Tamper behavior
 
@@ -163,13 +164,14 @@ Validation happens before dependency or JSON resolution. Evidrift does not fetch
 
 ## Business value supported by these tests
 
-The tests support five concrete claims:
+The tests support six concrete claims:
 
 1. A dependency call signature can change without an application-file diff, and Evidrift can block that merge with the old and new signatures side by side.
 2. A coding agent can record evidence through MCP but cannot submit a raw Receipt or mark its own work verified.
 3. A casual or accidental Receipt edit becomes a classified CI failure instead of silently changing the recorded reason.
 4. Revalidation needs no Evidrift account, API key, paid service, network call, package JavaScript execution, or LLM judgment.
 5. One repository-local OpenAPI or JSON Schema value can drift independently of unrelated document content, and CI classifies those cases differently.
+6. CI systems and coding agents can consume a versioned JSON result without parsing human text or losing Evidrift's exit-code policy.
 
 No customer, revenue, time-saving, defect-reduction, or performance claim has been inferred from these tests. Those would require real usage data.
 

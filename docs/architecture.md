@@ -22,7 +22,8 @@ flowchart LR
 - `src/mcp.ts`: one STDIO tool, `evidrift_record`; it accepts locators, not raw receipts.
 - `src/core.ts`: record and revalidation policy shared by CLI and MCP.
 - `src/demo.ts`: a self-contained local fixture that deliberately changes one dependency signature.
-- `src/output.ts` and `src/terminal.ts`: TTY-only presentation and stable machine-readable fallback output.
+- `src/output.ts` and `src/terminal.ts`: TTY-only presentation and stable plain-text fallback output.
+- `src/report.ts`: deterministic, versioned JSON check reports for CI and agent integrations.
 - `src/adapter/typescript-symbol.ts`: dependency and call-site resolution through the TypeScript Compiler API.
 - `src/adapter/json-pointer.ts`: bounded repository JSON loading, RFC 6901 lookup, and hashing.
 - `src/storage.ts`: strict untrusted-input validation, canonical writes, content hashes, and lock handling.

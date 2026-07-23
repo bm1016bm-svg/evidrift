@@ -4,7 +4,15 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## [Unreleased]
 
-No changes yet.
+### Added
+
+- `evidrift check --format json` with a versioned, deterministic report contract for CI systems, coding agents, and other integrations.
+- Public report helpers and types: `CHECK_REPORT_SCHEMA_VERSION`, `createCheckReport`, `renderCheckReport`, `CheckReport`, and `CheckReportSummary`.
+- Unit and end-to-end coverage for passing, contract-mismatch, and integrity-error JSON reports while preserving exit codes `0`, `1`, and `2`.
+
+### Changed
+
+- JSON check mode disables interactive progress and omits timestamps and absolute repository roots so equal results serialize identically.
 
 ## [0.3.3] - 2026-07-20
 
