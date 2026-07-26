@@ -12,7 +12,9 @@ Include the affected commit, platform, reproduction steps, impact, and any sugge
 
 ## Security model
 
-Evidrift treats `.evidrift/evidence.lock` and every Receipt as untrusted input. Its adapters read bounded repository-local JSON and TypeScript source/declaration files; they do not execute dependencies, package scripts, shell commands, network requests, or LLM calls.
+Evidrift treats `.evidrift/evidence.lock`, every Receipt, ReproMin request fixture, and reproduction artifact as untrusted input. Contract adapters read bounded repository-local JSON and TypeScript source/declaration files; they do not execute dependencies, package scripts, shell commands, network requests, or LLM calls.
+
+ReproMin is a separate CLI-only boundary. After explicit confirmation it repeatedly sends JSON to a literal loopback HTTP target. It refuses redirects, remote/LAN/hostname targets, proxy configuration, common secret-shaped names and high-confidence token patterns, invalid UTF-8 fixtures, oversized inputs/responses, and artifact hash mismatches. Probe counts and fixed-size candidate-cache keys are bounded. It never runs from `evidrift check` or MCP. Secret detection is not a data-loss-prevention guarantee, and these controls do not remove application side effects; use synthetic data and a disposable local fixture.
 
 Security-sensitive reports include:
 
@@ -21,6 +23,11 @@ Security-sensitive reports include:
 - trust in receipt-provided `matched`/`verified` state;
 - arbitrary execution triggered by a receipt;
 - a deterministic mismatch incorrectly reported as pass;
-- MCP inputs bypassing CLI/core validation.
+- MCP inputs bypassing CLI/core validation or transport bounds;
+- SSRF, redirect, proxy, or address-parsing bypasses in ReproMin;
+- credentials or raw response data leaking into artifacts or terminal output;
+- a minimized artifact being written when the baseline or final failure predicate did not match;
+- replay occurring without explicit CLI confirmation; and
+- probe-budget, timeout, response-size, or JSON resource limits being bypassed.
 
 Evidrift does not scan dependencies for vulnerabilities and does not prove runtime safety.

@@ -7,7 +7,7 @@ import { EVIDRIFT_VERSION } from '../src/types.js';
 
 const SITE_URL = 'https://bm1016bm-svg.github.io/evidrift/';
 
-test('public metadata names the concrete API-drift use case consistently', async () => {
+test('public metadata names minimal reproduction and API drift consistently', async () => {
   const packageJson = JSON.parse(
     await readFile(path.join(process.cwd(), 'package.json'), 'utf8'),
   ) as {
@@ -24,31 +24,28 @@ test('public metadata names the concrete API-drift use case consistently', async
   ]);
 
   assert.equal(packageJson.homepage, SITE_URL);
-  assert.match(packageJson.description ?? '', /TypeScript API/u);
-  assert.match(packageJson.description ?? '', /OpenAPI contract drift/u);
+  assert.match(packageJson.description ?? '', /replay-verified reductions/u);
+  assert.match(packageJson.description ?? '', /TypeScript or OpenAPI contract drift/u);
   assert.match(serverJson.description ?? '', /TypeScript API/u);
   assert.match(serverJson.description ?? '', /OpenAPI contract drift/u);
-  assert.match(
-    readme,
-    /^# Evidrift — API drift checks for AI-generated TypeScript and OpenAPI code$/mu,
-  );
+  assert.match(readme, /^# Evidrift — replay-verified JSON reductions and API drift evidence$/mu);
   assert.match(readme, /\[繁體中文\]\(README\.zh-TW\.md\)/u);
-  assert.match(
-    readmeZhTw,
-    /^# Evidrift — 檢查 AI 產生的 TypeScript 與 OpenAPI 程式碼是否發生 API drift$/mu,
-  );
+  assert.match(readmeZhTw, /^# Evidrift — 重播驗證的 JSON 縮減與 API drift evidence$/mu);
   assert.match(readmeZhTw, /\[English\]\(README\.md\)/u);
 
   for (const keyword of [
     'api-drift',
     'contract-testing',
     'dependency-contracts',
+    'delta-debugging',
     'evidence-lockfile',
     'json-pointer',
+    'minimal-reproduction',
     'mcp-server',
     'openapi',
     'openapi-drift',
     'typescript',
+    'test-case-reduction',
   ]) {
     assert.ok(packageJson.keywords?.includes(keyword), `npm metadata is missing ${keyword}`);
   }
@@ -78,6 +75,7 @@ test('Traditional Chinese docs are discoverable and keep machine interfaces stab
   );
   assert.match(htmlZhTw, new RegExp(`"softwareVersion": "${EVIDRIFT_VERSION}"`));
   assert.match(htmlZhTw, /npx --yes evidrift@latest demo/u);
+  assert.match(htmlZhTw, /npx --yes evidrift@latest repro-demo/u);
   assert.match(htmlZhTw, /Receipt/u);
   assert.match(htmlZhTw, /typescript\.symbol/u);
   assert.match(htmlZhTw, /json\.pointer/u);
@@ -114,10 +112,11 @@ test('GitHub Pages discovery files are internally aligned and machine readable',
   assert.match(robots, /Sitemap: https:\/\/bm1016bm-svg\.github\.io\/evidrift\/sitemap\.xml/u);
   assert.match(sitemap, /<loc>https:\/\/bm1016bm-svg\.github\.io\/evidrift\/<\/loc>/u);
   assert.match(llms, /npx --yes evidrift@latest demo/u);
-  assert.match(llms, /Evidrift does not prove runtime correctness/u);
+  assert.match(llms, /npx --yes evidrift@latest repro-demo/u);
+  assert.match(llms, /Evidrift does not prove code correct/u);
 });
 
-test('the first-visit path leads with a real, lightweight CLI demo', async () => {
+test('the first-visit path leads with real lightweight CLI demos', async () => {
   const [readme, html, transcript, gif] = await Promise.all([
     readFile(path.join(process.cwd(), 'README.md'), 'utf8'),
     readFile(path.join(process.cwd(), 'docs', 'index.html'), 'utf8'),
@@ -125,12 +124,19 @@ test('the first-visit path leads with a real, lightweight CLI demo', async () =>
     readFile(path.join(process.cwd(), 'docs', 'assets', 'evidrift-demo.gif')),
   ]);
 
+  const reproDemoIndex = readme.indexOf('npx --yes evidrift@latest repro-demo');
   const demoIndex = readme.indexOf('npx --yes evidrift@latest demo');
   const adoptIndex = readme.indexOf('## Installation — Add It to a Repository');
+  assert.ok(
+    reproDemoIndex >= 0 && adoptIndex > reproDemoIndex,
+    'README must let visitors try ReproMin before setup',
+  );
   assert.ok(demoIndex >= 0 && adoptIndex > demoIndex, 'README must let visitors try before setup');
+  assert.match(readme, /docs\/repro-min\.md/u);
   assert.match(readme, /docs\/assets\/evidrift-demo\.gif/u);
   assert.match(readme, /captured CLI transcript/u);
   assert.match(html, /assets\/evidrift-demo\.gif/u);
+  assert.match(html, /npx --yes evidrift@latest repro-demo/u);
   assert.match(html, /★ Star on GitHub/u);
   assert.match(transcript, /PASS sha256:[a-f0-9]{64}/u);
   assert.match(transcript, /FAIL contract_mismatch sha256:[a-f0-9]{64}/u);
@@ -140,11 +146,13 @@ test('the first-visit path leads with a real, lightweight CLI demo', async () =>
   assert.ok(gif.byteLength < 2 * 1024 * 1024, 'README demo GIF must stay under 2 MiB');
 });
 
-test('flagship documentation exposes scope, architecture, and a reproducible CI path', async () => {
-  const [readme, readmeZhTw, ciGuide] = await Promise.all([
+test('flagship documentation exposes scope, safety boundaries, and reproducible paths', async () => {
+  const [readme, readmeZhTw, ciGuide, reproGuide, architecture] = await Promise.all([
     readFile(path.join(process.cwd(), 'README.md'), 'utf8'),
     readFile(path.join(process.cwd(), 'README.zh-TW.md'), 'utf8'),
     readFile(path.join(process.cwd(), 'docs', 'ci.md'), 'utf8'),
+    readFile(path.join(process.cwd(), 'docs', 'repro-min.md'), 'utf8'),
+    readFile(path.join(process.cwd(), 'docs', 'architecture.md'), 'utf8'),
   ]);
 
   assert.match(readme, /## Supported Today/u);
@@ -152,13 +160,20 @@ test('flagship documentation exposes scope, architecture, and a reproducible CI 
   assert.match(readme, /```mermaid/u);
   assert.match(readme, /## Add It to CI/u);
   assert.match(readme, /npm run evidrift:check/u);
-  assert.match(readme, /YAML, URLs, remote `\$ref`/u);
+  assert.match(readme, /Remote replay, cURL import, YAML, remote `\$ref`/u);
+  assert.match(readme, /npx evidrift minimize/u);
+  assert.match(readme, /npx evidrift reproduce/u);
   assert.match(readmeZhTw, /## 目前支援範圍/u);
   assert.match(readmeZhTw, /## 運作方式/u);
   assert.match(readmeZhTw, /## 加入 CI/u);
   assert.match(ciGuide, /permissions:\s+contents: read/su);
   assert.match(ciGuide, /npm ci --ignore-scripts/u);
   assert.match(ciGuide, /npm run evidrift:check/u);
+  assert.match(reproGuide, /1-minimal under the selected JSON reducers/u);
+  assert.match(reproGuide, /literal `127\.0\.0\.0\/8` or `::1`/u);
+  assert.match(reproGuide, /`--status` alone is deliberately insufficient/u);
+  assert.match(architecture, /ReproMin never enters `checkRepository`/u);
+  assert.match(architecture, /MCP server and `evidrift check` cannot trigger HTTP replay/u);
   for (const use of ciGuide.matchAll(/^\s*uses:\s*(\S+)$/gmu)) {
     assert.match(use[1] ?? '', /@[a-f0-9]{40}$/u, `Documented Action is not pinned: ${use[1]}`);
   }

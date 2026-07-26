@@ -1,0 +1,56 @@
+name: ReproMin case
+description: Share a sanitized local failure that should reduce to a smaller reproduction.
+title: 'repro: '
+labels:
+  - reproduction
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ReproMin repeatedly sends requests. Use a disposable loopback fixture only.
+        Do not paste credentials, cookies, private URLs, customer data, or proprietary response bodies.
+  - type: input
+    id: version
+    attributes:
+      label: Evidrift version
+      placeholder: 0.4.0
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: Platform and Node.js version
+      placeholder: Windows 11, Node.js 24.4.1
+    validations:
+      required: true
+  - type: textarea
+    id: sanitized-request
+    attributes:
+      label: Sanitized request fixture
+      description: Use only literal loopback URLs and synthetic data.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: predicate
+    attributes:
+      label: Failure predicate
+      description: Include status plus response substring or JSON Pointer equality.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: result
+    attributes:
+      label: Actual result
+      description: Include exit code and sanitized output. Never include a raw secret-bearing response.
+      render: text
+    validations:
+      required: true
+  - type: checkboxes
+    id: safety
+    attributes:
+      label: Safety confirmation
+      options:
+        - label: The target is a disposable local fixture and the report contains no secret or private data.
+          required: true

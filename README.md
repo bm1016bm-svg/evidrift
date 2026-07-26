@@ -1,4 +1,4 @@
-# Evidrift — API drift checks for AI-generated TypeScript and OpenAPI code
+# Evidrift — replay-verified JSON reductions and API drift evidence
 
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
@@ -7,19 +7,50 @@
 [![Website](https://img.shields.io/badge/docs-GitHub%20Pages-111111.svg)](https://bm1016bm-svg.github.io/evidrift/)
 [![Indexed on TensorBlock MCP Index](https://mcp-index.tensorblock.co/v1/servers/github-bm1016bm-svg-evidrift-85713ef9/badge.svg)](https://www.tensorblock.co/mcp/servers/github-bm1016bm-svg-evidrift-85713ef9)
 
-> **Code compiles. APIs drift. Evidrift is the lockfile for AI assumptions.**
+> **Failures arrive noisy. APIs drift quietly. Evidrift turns both into deterministic evidence.**
 
-Coding agents can write against a TypeScript dependency or OpenAPI contract that changes tomorrow. Evidrift records the exact call signature or repository JSON value as a content-addressed Receipt, then makes CI recompute it before merge.
+Evidrift has two deliberately separate workflows:
 
-Local-first CLI. STDIO MCP server. No account, no cloud backend, no LLM judge, and no package code execution.
+- **ReproMin** repeatedly removes JSON data, replays each candidate against a disposable local HTTP target, and keeps only reductions that still match the selected failure identity.
+- **Contract drift** records an exact TypeScript call signature or repository JSON value as a content-addressed Receipt, then makes CI recompute it before merge.
 
-It deterministically catches selected TypeScript overload and parameter drift, repository-local OpenAPI or JSON Schema value drift through RFC 6901 JSON Pointer, and hand-edited or forged Receipt content.
+Local-first CLI. STDIO MCP server for contract recording only. No account, cloud backend, telemetry, or LLM judge.
 
 ![Evidrift — AI dependency lockfile](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-hero.png)
 
 [![Real Evidrift CLI demo: a dependency contract passes, its TypeScript signature changes, and Evidrift catches the drift before merge](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-demo.gif)](#quick-start--see-drift-in-one-command)
 
 The animation is rendered from a [captured CLI transcript](https://github.com/bm1016bm-svg/evidrift/blob/main/docs/assets/evidrift-demo-transcript.txt). The PASS, changed signatures, affected file, and deterministic FAIL come from an actual local `evidrift demo` run; only the scene headings are editorial.
+
+## Quick Start — Minimize a Failing Request
+
+Requires Node.js 22 or newer. The zero-setup demo starts a disposable loopback server, verifies one HTTP failure, minimizes its JSON request, verifies the result again, and shuts the server down:
+
+```bash
+npx --yes evidrift@latest repro-demo
+```
+
+The result is not selected by an LLM. Every accepted reduction is actually replayed and must match both the expected HTTP status and error identity.
+
+For your own local endpoint:
+
+```bash
+npx evidrift minimize \
+  --request failing-request.json \
+  --status 500 \
+  --response-pointer /error/code \
+  --response-equals '"INVALID_FILTER"' \
+  --output minimal-repro.json \
+  --confirm-replay yes
+```
+
+Then replay the content-addressed artifact once:
+
+```bash
+npx evidrift reproduce --artifact minimal-repro.json --confirm-replay yes
+```
+
+See the complete [ReproMin fixture, guarantees, and replay safety boundary](docs/repro-min.md).
 
 ## Quick Start — See Drift in One Command
 
@@ -35,12 +66,13 @@ The command creates a disposable local fixture, records the optional `options` p
 
 ## Supported Today
 
-| Surface                          | Deterministic evidence                                                  | Status             |
-| -------------------------------- | ----------------------------------------------------------------------- | ------------------ |
-| Installed TypeScript dependency  | Selected call signature, parameter, package version, and declaration    | Supported          |
-| Repository OpenAPI / JSON Schema | Canonical value selected through an RFC 6901 JSON Pointer               | Supported for JSON |
-| CLI and local STDIO MCP          | The same record and revalidation core                                   | Supported          |
-| YAML, URLs, remote `$ref`        | None; Evidrift refuses these inputs instead of making an unsafe promise | Not supported      |
+| Surface                                         | Deterministic evidence                                               | Status             |
+| ----------------------------------------------- | -------------------------------------------------------------------- | ------------------ |
+| Loopback HTTP JSON failure                      | Replayed reduction matching status plus error identity               | CLI only           |
+| Installed TypeScript dependency                 | Selected call signature, parameter, package version, and declaration | Supported          |
+| Repository OpenAPI / JSON Schema                | Canonical value selected through an RFC 6901 JSON Pointer            | Supported for JSON |
+| Contract CLI and local STDIO MCP                | The same record and revalidation core                                | Supported          |
+| Remote replay, cURL import, YAML, remote `$ref` | None; Evidrift refuses these inputs instead of guessing              | Not supported      |
 
 ## Installation — Add It to a Repository
 
@@ -98,7 +130,10 @@ Coding agents call the same core through `evidrift_record` and `evidrift_record_
 
 ```mermaid
 flowchart LR
-  Author["Coding agent or developer"] --> Record["Record one assumption"]
+  Author["Developer"] --> Minimize["Minimize failing JSON"]
+  Minimize --> Replay["Replay loopback failure"]
+  Replay --> Repro["Content-addressed reproduction"]
+  Agent["Coding agent or developer"] --> Record["Record one assumption"]
   Record --> Adapter["TypeScript or JSON adapter"]
   Adapter --> Receipt["Content-addressed Receipt"]
   Receipt --> Review["Git review"]
@@ -154,6 +189,9 @@ After `npm ci`, make that script a required CI step:
 
 The complete [GitHub Actions setup](docs/ci.md) uses read-only permissions, locked npm dependencies, and commit-pinned Actions.
 
+The root `action.yml` provides a Marketplace-ready contract check. It runs only the
+network-free contract workflow; ReproMin replay is never triggered by that Action.
+
 ## CI Behavior
 
 `evidrift check` does not trust saved `matched` or `verified` flags. It validates the Receipt, reloads the source, and recomputes the selected signature or JSON value.
@@ -201,7 +239,7 @@ Use all of them if they help. Evidrift covers one gap: the reason code was writt
 
 ### What is API drift?
 
-API drift is a change to a dependency or contract after code was written against it. Evidrift v0.3.3 checks two deterministic forms: the TypeScript call signature selected at an affected code location, and a canonical value selected from repository-local OpenAPI JSON or JSON Schema.
+API drift is a change to a dependency or contract after code was written against it. Evidrift checks two deterministic forms: the TypeScript call signature selected at an affected code location, and a canonical value selected from repository-local OpenAPI JSON or JSON Schema.
 
 ### Is Evidrift a contract-testing tool?
 
@@ -213,7 +251,9 @@ Yes. They can call the local STDIO MCP server to create Receipts through the sha
 
 ### Does Evidrift fetch OpenAPI URLs or execute package code?
 
-No. The v0.3.3 adapters inspect installed TypeScript declarations and repository-local `.json` files. They do not fetch URLs, resolve remote `$ref`, import dependency JavaScript, or execute arbitrary commands.
+The contract adapters do not. They inspect installed TypeScript declarations and repository-local `.json` files without fetching URLs, resolving remote `$ref`, importing dependency JavaScript, or executing arbitrary commands.
+
+`minimize` and `reproduce` are separate, explicit replay commands. They send JSON only to literal loopback HTTP addresses after `--confirm-replay yes`; they never run during `check` or through the MCP tools.
 
 ### Does Evidrift prove that AI-generated code is correct?
 
@@ -230,10 +270,15 @@ evidrift check [--format text|json]
 evidrift diff
 evidrift explain <receipt-id>
 evidrift demo
+evidrift repro-demo
+evidrift minimize --request <json> --status <code> \
+  (--response-contains <text> | --response-pointer <RFC6901> --response-equals <json>) \
+  --output <json> --confirm-replay yes
+evidrift reproduce --artifact <json> --confirm-replay yes
 evidrift mcp
 ```
 
-All commands accept `--root <repo>`. `record` requires an initialized `.evidrift/evidence.lock`.
+Repository-scoped commands accept `--root <repo>`. `record` requires an initialized `.evidrift/evidence.lock`; `repro-demo` and `mcp` do not use a repository root.
 
 `evidrift mcp` starts the same local STDIO server exposed by the `evidrift-mcp` bin. It exists so package registries and MCP clients can launch Evidrift deterministically from the main npm package.
 
@@ -251,11 +296,15 @@ The parser refuses more than 1,024 Receipt IDs or 64 call signatures per symbol.
 
 Content hashes detect inconsistent edits; they do not prove authorship. Someone who rewrites a Receipt, recalculates its ID, and changes `evidence.lock` can create new internally valid evidence. Git review and branch protection must catch that replacement. See [Architecture](docs/architecture.md).
 
+ReproMin has a separate boundary because replay can cause side effects. It accepts only literal loopback HTTP targets, refuses redirects and common secret-shaped input, requires explicit replay confirmation, caps requests and response inspection, and never runs from `check` or the MCP server. The artifact records what Evidrift observed; its content hash detects inconsistent edits but does not authenticate probe history. `reproduce` verifies one current replay.
+
 ## What Evidrift Does Not Prove
 
-Evidrift does not prove code is correct. It does not prove a free-text claim is true, inspect runtime behavior, eliminate hallucinations, scan dependency vulnerabilities, or validate arbitrary URLs.
+Evidrift does not prove code is correct. The contract workflow does not prove a free-text claim, execute runtime behavior, eliminate hallucinations, scan dependency vulnerabilities, or validate arbitrary URLs.
 
-The v0.3 source tree resolves overloaded TypeScript calls from the affected `path:line` when the consumer code compiles and TypeScript can identify one declared overload. Invalid, ambiguous, or missing calls are refused rather than guessed; `--overload` is the explicit fallback. The Receipt stores the selected normalized signature and hash, so declaration reordering does not cause false drift.
+ReproMin does not prove a global minimum or identify the root cause. Without an exhausted budget it establishes only 1-minimality under its documented JSON reducers and the chosen failure predicate. A weak predicate can still describe the wrong bug, which is why status alone is rejected.
+
+The contract workflow resolves overloaded TypeScript calls from the affected `path:line` when the consumer code compiles and TypeScript can identify one declared overload. Invalid, ambiguous, or missing calls are refused rather than guessed; `--overload` is the explicit fallback. The Receipt stores the selected normalized signature and hash, so declaration reordering does not cause false drift.
 
 The `json.pointer` adapter locks canonical values in repository-local `.json` files. It does not support YAML, URLs, remote `$ref`, schema validation, or semantic equivalence. It follows repository-local TypeScript declaration imports, but does not expand every named type into a deep structural contract. Missing or unreadable source is a visible but non-blocking warning. These are deliberate limits, not hidden guarantees.
 
@@ -272,7 +321,7 @@ npm run uat
 npm run check
 ```
 
-`npm run verify` runs the release gate. Tests use temporary local fixtures and require no secrets, paid APIs, Evidrift backend, or network access. The detailed [UAT report](docs/UAT.md) maps each acceptance case to an automated test and states the remaining risks.
+`npm run verify` runs the release gate. Tests use temporary fixtures and disposable loopback servers; they require no secrets, paid APIs, Evidrift backend, or external network access. The detailed [UAT report](docs/UAT.md) maps each acceptance case to an automated test and states the remaining risks.
 
 ## License
 

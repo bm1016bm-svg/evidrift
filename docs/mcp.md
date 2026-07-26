@@ -1,5 +1,9 @@
 # MCP setup
 
+MCP exposes contract recording only. ReproMin HTTP replay is intentionally CLI-only because
+tool annotations or model-supplied confirmation are not user authorization for repeated
+state-changing requests.
+
 Install Evidrift in the target repository and initialize it first:
 
 ```bash
@@ -8,6 +12,12 @@ npx evidrift init
 ```
 
 The server uses its working directory as the repository root and exposes `evidrift_record` for TypeScript plus `evidrift_record_json_pointer` for repository JSON. The package-level `evidrift mcp` command and the standalone `evidrift-mcp` bin start the same STDIO server.
+
+The published server implements only the bounded STDIO JSON-RPC surface these two tools need.
+Each inbound message is capped at 1 MiB and each process accepts at most 256 tool calls. Invalid
+UTF-8 and incomplete messages are refused. The official MCP SDK remains the
+interoperability-test client, so its unused HTTP server adapters are not shipped as Evidrift
+runtime dependencies.
 
 ## Codex
 

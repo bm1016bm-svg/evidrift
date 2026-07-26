@@ -1,14 +1,51 @@
 import assert from 'node:assert/strict';
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import { Readable, Writable } from 'node:stream';
 import { test } from 'node:test';
 
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 
 import { initEvidrift } from '../src/core.js';
+import { EvidriftMcpServer } from '../src/mcp.js';
 import { readEvidenceLock } from '../src/storage.js';
 import { createFixtureRepository } from './helpers.js';
+
+interface RawMcpResponse {
+  id: number | string | null;
+  result?: unknown;
+  error?: {
+    code: number;
+    message: string;
+  };
+}
+
+const RAW_INITIALIZE = {
+  jsonrpc: '2.0',
+  id: 1,
+  method: 'initialize',
+  params: {
+    protocolVersion: '2025-11-25',
+    capabilities: {},
+    clientInfo: { name: 'raw-test-client', version: '1.0.0' },
+  },
+};
+
+async function runRawMcp(chunks: readonly Buffer[]): Promise<RawMcpResponse[]> {
+  let outputText = '';
+  const output = new Writable({
+    write(chunk: Buffer, _encoding, callback): void {
+      outputText += chunk.toString('utf8');
+      callback();
+    },
+  });
+  await new EvidriftMcpServer(process.cwd()).run(Readable.from(chunks), output);
+  return outputText
+    .split('\n')
+    .filter((line) => line.length > 0)
+    .map((line) => JSON.parse(line) as RawMcpResponse);
+}
 
 function isTextContent(value: unknown): value is { type: 'text'; text: string } {
   return (
@@ -20,6 +57,49 @@ function isTextContent(value: unknown): value is { type: 'text'; text: string } 
     typeof value.text === 'string'
   );
 }
+
+test('bounded MCP transport validates protocol envelopes and unknown tools', async () => {
+  const messages = [
+    { jsonrpc: '2.0', id: 1, method: 'initialize', params: {} },
+    RAW_INITIALIZE,
+    { jsonrpc: '2.0', id: 2, method: 'tools/list', params: 'invalid' },
+    {
+      jsonrpc: '2.0',
+      id: 3,
+      method: 'tools/call',
+      params: { name: 'unknown_tool', arguments: {} },
+    },
+    { jsonrpc: '2.0', id: 4, method: 'tools/call', params: 'invalid' },
+    {
+      jsonrpc: '2.0',
+      id: 5,
+      method: 'tools/call',
+      params: { name: 'evidrift_record', arguments: {}, task: {} },
+    },
+  ];
+  const responses = await runRawMcp([
+    Buffer.from(`${messages.map((message) => JSON.stringify(message)).join('\n')}\n`),
+  ]);
+  assert.deepEqual(
+    responses.map((response) => response.error?.code),
+    [-32_602, undefined, -32_602, -32_602, -32_602, -32_601],
+  );
+});
+
+test('bounded MCP transport handles fragmented input and rejects invalid UTF-8', async () => {
+  const bytes = Buffer.from(`${JSON.stringify(RAW_INITIALIZE)}\n`);
+  const responses = await runRawMcp([...bytes].map((byte) => Buffer.from([byte])));
+  assert.equal(responses.length, 1);
+  assert.equal(responses[0]?.id, 1);
+  assert.ok(responses[0]?.result);
+
+  const invalidUtf8 = Buffer.concat([
+    Buffer.from('{"jsonrpc":"2.0","id":1,"method":"pi'),
+    Buffer.from([0xff]),
+    Buffer.from('ng"}\n'),
+  ]);
+  await assert.rejects(runRawMcp([invalidUtf8]), /not valid UTF-8/u);
+});
 
 test('package-level CLI MCP entrypoint records through the same core and never declares verification', async () => {
   const fixture = await createFixtureRepository();
@@ -33,6 +113,12 @@ test('package-level CLI MCP entrypoint records through the same core and never d
   });
   try {
     await client.connect(transport);
+    const listed = await client.listTools();
+    assert.deepEqual(
+      listed.tools.map((tool) => tool.name),
+      ['evidrift_record', 'evidrift_record_json_pointer'],
+    );
+    assert.equal(listed.tools[0]?.inputSchema.additionalProperties, false);
     const result = await client.callTool({
       name: 'evidrift_record',
       arguments: {

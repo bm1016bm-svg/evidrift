@@ -81,7 +81,7 @@ This format is deterministic but is not claimed to implement RFC 8785. Schema v1
 
 Receipt strings and paths use bounded, canonical forms. `evidence.lock` is limited to 1 MiB, each Receipt to 4 MiB, claims to 500 characters, and evidence paths to 4096 characters. Storage files must be regular files rather than symlinks.
 
-Content addressing checks internal consistency, not authorship. Replacing both a Receipt and its lock entry with a newly hashed payload is detectable in Git review but is not prevented cryptographically in v0.3.
+Content addressing checks internal consistency, not authorship. Replacing both a Receipt and its lock entry with a newly hashed payload is detectable in Git review but is not prevented cryptographically by schema v1.
 
 ## Meaning of fields
 

@@ -52,6 +52,9 @@ test('npm tarball contains the executable surface and excludes source, tests, an
     'dist/src/demo.js',
     'dist/src/index.js',
     'dist/src/mcp.js',
+    'dist/src/repro-demo.js',
+    'dist/src/repro-http.js',
+    'dist/src/repro.js',
     'package.json',
   ]) {
     assert.ok(files.includes(required), `npm tarball is missing ${required}`);
@@ -78,6 +81,8 @@ test('release, npm, and official MCP Registry metadata stay version-aligned', as
     name?: string;
     version?: string;
     mcpName?: string;
+    dependencies?: Record<string, string>;
+    devDependencies?: Record<string, string>;
   };
   const lock = JSON.parse(
     await readFile(path.join(process.cwd(), 'package-lock.json'), 'utf8'),
@@ -106,6 +111,9 @@ test('release, npm, and official MCP Registry metadata stay version-aligned', as
   assert.equal(registryPackage?.version, EVIDRIFT_VERSION);
   assert.equal(registryPackage?.transport?.type, 'stdio');
   assert.deepEqual(registryPackage?.packageArguments, [{ type: 'positional', value: 'mcp' }]);
+  assert.equal(manifest.dependencies?.['@modelcontextprotocol/sdk'], undefined);
+  assert.equal(manifest.dependencies?.zod, undefined);
+  assert.equal(manifest.devDependencies?.['@modelcontextprotocol/sdk'], '1.29.0');
 
   const workflow = await readFile(
     path.join(process.cwd(), '.github', 'workflows', 'release.yml'),
@@ -115,6 +123,9 @@ test('release, npm, and official MCP Registry metadata stay version-aligned', as
   assert.doesNotMatch(workflow, /NPM_TOKEN/u);
   assert.match(workflow, /workflow_dispatch:/u);
   assert.match(workflow, /RELEASE_TAG:/u);
+  assert.match(workflow, /npm audit --omit=dev --audit-level=moderate/u);
+  assert.match(workflow, /npm view "evidrift@\$\{VERSION\}" gitHead/u);
+  assert.match(workflow, /PUBLISHED_SHA.*TAGGED_SHA/su);
   assert.match(workflow, /\$\{RUNNER_TEMP\}\/mcp-validation\.json/u);
   assert.doesNotMatch(workflow, /--output mcp-validation\.json/u);
   assert.match(workflow, /mcp-publisher_linux_amd64\.tar\.gz/u);
@@ -137,4 +148,45 @@ test('CI verifies supported Node releases on Linux and Windows', async () => {
   for (const use of workflow.matchAll(/^\s*uses:\s*(\S+)$/gmu)) {
     assert.match(use[1] ?? '', /@[a-f0-9]{40}$/u, `Action is not pinned: ${use[1]}`);
   }
+});
+
+test('root Action metadata is Marketplace-ready and delegates without a shell', async () => {
+  const runnerPath = path.join(process.cwd(), 'scripts', 'run-action.mjs');
+  const [metadata, runner] = await Promise.all([
+    readFile(path.join(process.cwd(), 'action.yml'), 'utf8'),
+    readFile(runnerPath, 'utf8'),
+  ]);
+
+  assert.match(metadata, /^name: Evidrift Contract Drift Check$/mu);
+  assert.match(metadata, /^description: .+$/mu);
+  assert.match(metadata, /^branding:$/mu);
+  assert.match(metadata, /^\s+using: composite$/mu);
+  assert.match(metadata, /node "\$GITHUB_ACTION_PATH\/scripts\/run-action\.mjs"/u);
+  assert.match(runner, /`evidrift@\$\{version\}`/u);
+  assert.match(runner, /'--ignore-scripts'/u);
+  assert.match(runner, /--registry=https:\/\/registry\.npmjs\.org\//u);
+  assert.match(runner, /cwd: actionRoot/u);
+  assert.match(runner, /process\.execPath/u);
+  assert.match(runner, /npm-cli\.js/u);
+  assert.doesNotMatch(runner, /npx\.cmd/u);
+  assert.match(runner, /GITHUB_WORKSPACE/u);
+  assert.match(runner, /path\.relative\(workspaceRoot, targetRoot\)/u);
+  assert.match(runner, /'--root',\s+targetRoot/su);
+  assert.match(runner, /npm_config_registry: 'https:\/\/registry\.npmjs\.org\/'/u);
+  assert.match(runner, /'--format',\s+format/su);
+  assert.match(runner, /shell: false/u);
+  assert.doesNotMatch(runner, /shell:\s*true/u);
+  assert.doesNotMatch(runner, /exec(?:File|Sync)?\(/u);
+
+  const escapedRoot = spawnSync(process.execPath, [runnerPath], {
+    cwd: process.cwd(),
+    encoding: 'utf8',
+    env: {
+      ...process.env,
+      EVIDRIFT_ACTION_ROOT: '../outside',
+      GITHUB_WORKSPACE: process.cwd(),
+    },
+  });
+  assert.notEqual(escapedRoot.status, 0);
+  assert.match(escapedRoot.stderr, /must stay inside GITHUB_WORKSPACE/u);
 });

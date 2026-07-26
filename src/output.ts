@@ -2,6 +2,7 @@ import { Chalk, type ChalkInstance } from 'chalk';
 
 import { affectedCodeLabel } from './core.js';
 import type { DemoResult } from './demo.js';
+import type { ProbeObservation, ReproductionArtifact } from './repro-http.js';
 import { escapeOutputText } from './text.js';
 import type { CheckResult, Receipt } from './types.js';
 
@@ -213,5 +214,56 @@ export function renderDemo(result: DemoResult, options: RenderOptions = {}): str
     '',
     caught,
     'Next: inspect the generated .evidrift-demo/signature-drift workspace or run `evidrift demo` again.',
+  ].join('\n');
+}
+
+export function renderMinimize(artifact: ReproductionArtifact, outputPath: string): string {
+  const { evidence } = artifact;
+  const reduction =
+    evidence.originalBytes === 0
+      ? '0.0'
+      : ((1 - evidence.minimizedBytes / evidence.originalBytes) * 100).toFixed(1);
+  return [
+    `MINIMIZED ${escapeOutputText(artifact.reproId)}`,
+    `Body: ${evidence.originalBytes} bytes -> ${evidence.minimizedBytes} bytes (${reduction}% smaller)`,
+    `Evidence: ${escapeOutputText(evidence.claim)}`,
+    `HTTP probes: ${evidence.probes}`,
+    `Accepted reductions: ${evidence.acceptedReductions}`,
+    `Probe budget exhausted: ${evidence.budgetExhausted ? 'yes' : 'no'}`,
+    `Output: ${escapeOutputText(outputPath)}`,
+    'Next: run `evidrift reproduce` with --artifact set to the output path and --confirm-replay yes.',
+  ].join('\n');
+}
+
+export function renderReproductionVerification(
+  artifact: ReproductionArtifact,
+  observation: ProbeObservation,
+): string {
+  return [
+    `${observation.matched ? 'MATCH' : 'MISMATCH'} ${escapeOutputText(artifact.reproId)}`,
+    `HTTP status: ${observation.status}`,
+    `Failure predicate: ${observation.matched ? 'matched' : 'did not match'}`,
+    'Scope: one explicit loopback replay; runtime correctness beyond the selected predicate is not claimed.',
+  ].join('\n');
+}
+
+export function renderReproMinDemo(artifact: ReproductionArtifact): string {
+  const { evidence } = artifact;
+  return [
+    'Evidrift ReproMin demo',
+    '',
+    '1/3 Failure identity selected',
+    'HTTP 500 + JSON Pointer /error/code == "INVALID_FILTER"',
+    '',
+    '2/3 Every accepted candidate replayed against a disposable loopback server',
+    `Body: ${evidence.originalBytes} bytes -> ${evidence.minimizedBytes} bytes`,
+    `HTTP probes: ${evidence.probes}`,
+    '',
+    '3/3 Minimal failure verified',
+    `MATCH ${escapeOutputText(artifact.reproId)}`,
+    `Minimal JSON: ${escapeOutputText(JSON.stringify(artifact.request.body))}`,
+    `Evidence: ${escapeOutputText(evidence.claim)}`,
+    '',
+    'No remote host, account, API key, dependency-under-test code, shell command, or LLM judge was used.',
   ].join('\n');
 }

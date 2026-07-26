@@ -18,7 +18,12 @@ import { test, type TestContext } from 'node:test';
 
 import { canonicalStringify, contentHash } from '../src/canonical.js';
 import type { CheckReport } from '../src/report.js';
-import type { EvidenceLock, Receipt, ReceiptPayload } from '../src/types.js';
+import {
+  EVIDRIFT_VERSION,
+  type EvidenceLock,
+  type Receipt,
+  type ReceiptPayload,
+} from '../src/types.js';
 import { createFixtureRepository, DRIFTED_DECLARATION, type FixtureRepository } from './helpers.js';
 
 const cli = path.resolve(process.cwd(), 'dist', 'src', 'cli.js');
@@ -150,7 +155,7 @@ test('UAT: check emits versioned JSON with unchanged exit-code semantics', async
   const baseline = JSON.parse(baselineResult.stdout) as CheckReport;
   assert.equal(baselineResult.stderr, '');
   assert.equal(baseline.schemaVersion, 1);
-  assert.deepEqual(baseline.tool, { name: 'evidrift', version: '0.3.3' });
+  assert.deepEqual(baseline.tool, { name: 'evidrift', version: EVIDRIFT_VERSION });
   assert.equal(baseline.command, 'check');
   assert.equal(baseline.exitCode, 0);
   assert.deepEqual(baseline.summary, { pass: 1, warning: 0, fail: 0 });

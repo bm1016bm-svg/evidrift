@@ -2,6 +2,18 @@
 
 Evidrift should run after the repository's locked dependencies are installed. Store `.evidrift/evidence.lock` and `.evidrift/receipts/` in Git so reviewers can see when an assumption is added or replaced.
 
+This guide covers the network-free contract command, `evidrift check`. ReproMin replay is
+CLI-only and intentionally excluded from the default CI path because repeated HTTP requests
+can change application state.
+
+The repository also contains a root `action.yml` for GitHub Marketplace publication. A tagged
+Action runs the matching immutable npm version from that tag; it does not execute ReproMin.
+The Action fetches that package from the official npm registry in the trusted Action directory,
+with lifecycle scripts disabled; “network-free” describes the contract check itself, not package
+installation. Self-hosted runners must provide Node.js 22 or newer.
+When a release containing `action.yml` is available, reference its full commit SHA. Otherwise
+use the package workflow below; never reference a development branch from a trusted workflow.
+
 ## Package script
 
 Install Evidrift as a development dependency and expose a stable command for local development and CI:

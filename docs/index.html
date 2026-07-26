@@ -4,10 +4,10 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="icon" href="./assets/favicon.svg" type="image/svg+xml" />
-    <title>Evidrift — TypeScript API and OpenAPI drift checks for AI-generated code</title>
+    <title>Evidrift — replay-verified JSON reductions and API drift evidence</title>
     <meta
       name="description"
-      content="Catch TypeScript API drift and OpenAPI contract drift in AI-generated code. Evidrift is a local-first CLI and MCP server that revalidates assumptions in CI."
+      content="Turn failing JSON requests into replay-verified reductions, and catch TypeScript or OpenAPI contract drift before merge."
     />
     <link rel="canonical" href="https://bm1016bm-svg.github.io/evidrift/" />
     <link rel="alternate" hreflang="en" href="https://bm1016bm-svg.github.io/evidrift/" />
@@ -22,10 +22,10 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Evidrift" />
     <meta property="og:url" content="https://bm1016bm-svg.github.io/evidrift/" />
-    <meta property="og:title" content="Evidrift — TypeScript API and OpenAPI drift checks" />
+    <meta property="og:title" content="Evidrift — minimal reproductions and API drift evidence" />
     <meta
       property="og:description"
-      content="Code compiles. APIs drift. Lock the assumptions your coding agent relied on and recheck them in CI."
+      content="Replay every reduction, preserve the same failure identity, and recheck dependency assumptions in CI."
     />
     <meta
       property="og:image"
@@ -33,10 +33,10 @@
     />
     <meta property="og:image:alt" content="Evidrift — AI dependency lockfile" />
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Evidrift — TypeScript API and OpenAPI drift checks" />
+    <meta name="twitter:title" content="Evidrift — replay-verified JSON reductions" />
     <meta
       name="twitter:description"
-      content="Code compiles. APIs drift. Revalidate AI coding assumptions in CI."
+      content="Shrink failing JSON requests with real loopback replays, then guard dependency contracts in CI."
     />
     <meta
       name="twitter:image"
@@ -47,11 +47,11 @@
         "@context": "https://schema.org",
         "@type": "SoftwareApplication",
         "name": "Evidrift",
-        "alternateName": "Evidrift evidence lockfile",
+        "alternateName": "Evidrift ReproMin and evidence lockfile",
         "applicationCategory": "DeveloperApplication",
         "operatingSystem": "Windows, macOS, Linux",
-        "softwareVersion": "0.3.3",
-        "description": "A local-first CLI and MCP server that detects TypeScript API and OpenAPI contract drift in AI-generated code by revalidating deterministic evidence in CI.",
+        "softwareVersion": "0.4.0",
+        "description": "A local-first CLI that minimizes failing JSON requests through verified loopback replay and detects TypeScript or OpenAPI contract drift through deterministic evidence.",
         "url": "https://bm1016bm-svg.github.io/evidrift/",
         "codeRepository": "https://github.com/bm1016bm-svg/evidrift",
         "downloadUrl": "https://www.npmjs.com/package/evidrift",
@@ -65,6 +65,14 @@
         "@context": "https://schema.org",
         "@type": "FAQPage",
         "mainEntity": [
+          {
+            "@type": "Question",
+            "name": "What is a minimal reproduction?",
+            "acceptedAnswer": {
+              "@type": "Answer",
+              "text": "A minimal reproduction is a small input that still triggers one explicitly identified failure. Evidrift replays each JSON reduction and keeps it only when the selected HTTP status and error identity still match."
+            }
+          },
           {
             "@type": "Question",
             "name": "What is API drift?",
@@ -370,7 +378,8 @@
       <nav aria-label="Primary navigation">
         <a class="brand" href="./">Evidrift</a>
         <div class="links">
-          <a href="#demo">Demo</a>
+          <a href="#repro-demo">ReproMin</a>
+          <a href="#demo">Drift demo</a>
           <a href="#faq">FAQ</a>
           <a lang="zh-Hant" href="./zh-TW/">繁體中文</a>
           <a href="https://github.com/bm1016bm-svg/evidrift">GitHub</a>
@@ -379,14 +388,14 @@
       </nav>
 
       <header>
-        <div class="eyebrow">AI dependency lockfile / local-first / deterministic</div>
-        <h1>Code compiles.<br />APIs drift.</h1>
+        <div class="eyebrow">Verified reproductions / contract drift / local-first</div>
+        <h1>Failures shrink.<br />Evidence stays.</h1>
         <p class="lede">
-          Evidrift locks the TypeScript and OpenAPI assumptions your coding agent relied on, then
-          rechecks them in CI before the next merge.
+          Evidrift turns noisy failing JSON requests into replay-verified reductions, then guards
+          the TypeScript and OpenAPI assumptions your code relies on.
         </p>
         <div class="actions">
-          <a class="button primary" href="#demo">Run the one-command demo</a>
+          <a class="button primary" href="#repro-demo">Run the ReproMin demo</a>
           <a class="button" href="https://github.com/bm1016bm-svg/evidrift">★ Star on GitHub</a>
         </div>
         <img
@@ -399,14 +408,44 @@
       </header>
 
       <main>
-        <section aria-labelledby="checks-title">
-          <div class="eyebrow">What it checks</div>
-          <h2 id="checks-title">One assumption. Recomputed.</h2>
+        <section id="repro-demo" aria-labelledby="repro-demo-title">
+          <div class="eyebrow">No signup. No target setup. No remote request.</div>
+          <h2 id="repro-demo-title">Shrink a verified failure in one command.</h2>
+          <pre><code>npx --yes evidrift@latest repro-demo</code></pre>
           <p class="muted">
-            Receipts are repository files, not trusted verdicts. Evidrift reloads the source and
-            recalculates the deterministic contract every time.
+            The demo starts a disposable loopback server, verifies an HTTP 500 plus
+            <code>INVALID_FILTER</code>, replays every candidate, verifies the minimized result, and
+            closes the server.
+          </p>
+          <pre aria-label="Example ReproMin result"><code>MINIMIZED sha256:...
+Body: 217 bytes -&gt; 46 bytes
+Minimal JSON: {"filters":{"unsupported":{"mode":"explode"}}}
+Evidence: 1-minimal under the selected JSON reducers and failure predicate</code></pre>
+          <div class="actions">
+            <a
+              class="button primary"
+              href="https://github.com/bm1016bm-svg/evidrift/blob/main/docs/repro-min.md"
+              >Read the safety boundary</a
+            >
+          </div>
+        </section>
+
+        <section aria-labelledby="checks-title">
+          <div class="eyebrow">Two isolated workflows</div>
+          <h2 id="checks-title">One failure reduced. One assumption recomputed.</h2>
+          <p class="muted">
+            HTTP replay never runs from contract checks or MCP. Receipts remain repository files,
+            not trusted verdicts.
           </p>
           <div class="grid">
+            <article class="card">
+              <span class="tag">repro.minimize</span>
+              <h3>Minimal HTTP reproduction</h3>
+              <p>
+                Remove JSON structure and accept a candidate only after status plus explicit error
+                identity still match on a literal loopback target.
+              </p>
+            </article>
             <article class="card">
               <span class="tag">typescript.symbol</span>
               <h3>TypeScript API drift</h3>
@@ -423,19 +462,11 @@
                 6901 JSON Pointer.
               </p>
             </article>
-            <article class="card">
-              <span class="tag">sha256</span>
-              <h3>Receipt tampering</h3>
-              <p>
-                Treat every Receipt as hostile input. Recompute content IDs and evidence hashes
-                instead of trusting stored <code>matched</code> or <code>verified</code> flags.
-              </p>
-            </article>
           </div>
         </section>
 
         <section id="demo" aria-labelledby="demo-title">
-          <div class="eyebrow">No signup. No API key. No cloud.</div>
+          <div class="eyebrow">Contract drift / no package execution</div>
           <h2 id="demo-title">See deterministic drift in one command.</h2>
           <pre><code>npx --yes evidrift@latest demo</code></pre>
           <img
@@ -447,8 +478,8 @@
             alt="Real Evidrift CLI demo: a TypeScript contract passes, the dependency signature changes, and Evidrift reports deterministic contract drift"
           />
           <p class="muted">
-            Rendered from a real local CLI transcript. No package code, cloud service, or LLM
-            verdict is involved.
+            Rendered from a real local CLI transcript. No dependency-under-test code, cloud service,
+            or LLM verdict is involved.
           </p>
           <pre
             aria-label="Example deterministic failure"
@@ -474,6 +505,7 @@ Action: Review the dependency change, then intentionally record new evidence.</c
             <div>
               <h3>Evidrift does</h3>
               <ul>
+                <li>replay every accepted JSON reduction against an explicit loopback failure;</li>
                 <li>record why a code location depends on a static contract;</li>
                 <li>revalidate the exact evidence through CLI, MCP, or GitHub Actions;</li>
                 <li>fail on deterministic contract mismatch or evidence-integrity failure;</li>
@@ -483,8 +515,8 @@ Action: Review the dependency change, then intentionally record new evidence.</c
             <div>
               <h3>Evidrift does not</h3>
               <ul>
-                <li>prove runtime correctness or free-text semantic truth;</li>
-                <li>fetch arbitrary URLs or resolve remote OpenAPI references;</li>
+                <li>claim a global minimum, root cause, or broad runtime correctness;</li>
+                <li>replay remote URLs or resolve remote OpenAPI references;</li>
                 <li>execute package code or Receipt-supplied commands;</li>
                 <li>use an LLM judge as a CI gate.</li>
               </ul>
@@ -495,6 +527,13 @@ Action: Review the dependency change, then intentionally record new evidence.</c
         <section id="faq" class="faq" aria-labelledby="faq-title">
           <div class="eyebrow">Straight answers</div>
           <h2 id="faq-title">FAQ</h2>
+          <details>
+            <summary>What does “minimal” mean?</summary>
+            <p>
+              When the probe budget completes, no selected single JSON reduction still matches the
+              chosen failure predicate. It is not a claim of the globally smallest possible request.
+            </p>
+          </details>
           <details>
             <summary>What is API drift?</summary>
             <p>
@@ -520,16 +559,16 @@ Action: Review the dependency change, then intentionally record new evidence.</c
           <details>
             <summary>Does it prove AI-generated code is correct?</summary>
             <p>
-              No. It proves only that deterministic evidence still matches and that stored Receipt
-              content passes integrity checks. Runtime correctness and semantic truth remain
-              separate.
+              No. ReproMin verifies only that one reduced request currently matches one explicit
+              failure predicate during replay. Contract Receipts establish only that selected
+              deterministic evidence still matches and passes integrity checks.
             </p>
           </details>
         </section>
       </main>
 
       <footer>
-        <span>Evidrift v0.3.3 · MPL-2.0 · local-first</span>
+        <span>Evidrift v0.4.0 · MPL-2.0 · local-first</span>
         <span>
           <a href="https://github.com/bm1016bm-svg/evidrift">GitHub</a> ·
           <a href="https://www.npmjs.com/package/evidrift">npm</a> ·

@@ -18,6 +18,12 @@ const packageLock = JSON.parse(
   await readFile(new URL('../package-lock.json', import.meta.url), 'utf8'),
 );
 const server = JSON.parse(await readFile(new URL('../server.json', import.meta.url), 'utf8'));
+const [typesSource, siteSource, siteZhTwSource, changelog] = await Promise.all([
+  readFile(new URL('../src/types.ts', import.meta.url), 'utf8'),
+  readFile(new URL('../docs/index.html', import.meta.url), 'utf8'),
+  readFile(new URL('../docs/zh-TW/index.html', import.meta.url), 'utf8'),
+  readFile(new URL('../CHANGELOG.md', import.meta.url), 'utf8'),
+]);
 const version = tag.slice(1);
 const registryPackage = server.packages?.[0];
 
@@ -36,6 +42,21 @@ for (const [label, actual, expected] of checks) {
   if (actual !== expected) {
     fail(`${label} is ${String(actual)}; expected ${String(expected)}.`);
   }
+}
+
+if (!typesSource.includes(`EVIDRIFT_VERSION = '${version}'`)) {
+  fail(`src/types.ts is not aligned to ${version}.`);
+}
+for (const [label, source] of [
+  ['English site metadata', siteSource],
+  ['Traditional Chinese site metadata', siteZhTwSource],
+]) {
+  if (!source.includes(`"softwareVersion": "${version}"`)) {
+    fail(`${label} is not aligned to ${version}.`);
+  }
+}
+if (!changelog.includes(`## [${version}] -`)) {
+  fail(`CHANGELOG.md has no dated ${version} release heading.`);
 }
 
 const arguments_ = registryPackage?.packageArguments;
