@@ -49,6 +49,9 @@ jobs:
       - name: Install locked dependencies
         run: npm ci --ignore-scripts
 
+      - name: Audit published runtime dependencies
+        run: npm audit --omit=dev --audit-level=moderate
+
       - name: Verify release metadata
         run: npm run release:check -- "${RELEASE_TAG}"
 
@@ -72,7 +75,13 @@ jobs:
         id: npm-state
         run: |
           VERSION="${RELEASE_TAG#v}"
+          TAGGED_SHA="$(git rev-parse "${RELEASE_TAG}^{commit}")"
           if npm view "evidrift@${VERSION}" version --registry=https://registry.npmjs.org/ >/dev/null 2>&1; then
+            PUBLISHED_SHA="$(npm view "evidrift@${VERSION}" gitHead --registry=https://registry.npmjs.org/)"
+            if [ "${PUBLISHED_SHA}" != "${TAGGED_SHA}" ]; then
+              echo "evidrift@${VERSION} already exists but gitHead ${PUBLISHED_SHA} does not match tag ${TAGGED_SHA}" >&2
+              exit 1
+            fi
             echo 'exists=true' >> "${GITHUB_OUTPUT}"
           else
             echo 'exists=false' >> "${GITHUB_OUTPUT}"
@@ -85,10 +94,12 @@ jobs:
       - name: Read npm version back
         run: |
           VERSION="${RELEASE_TAG#v}"
+          TAGGED_SHA="$(git rev-parse "${RELEASE_TAG}^{commit}")"
           for attempt in {1..12}; do
             PUBLISHED="$(npm view "evidrift@${VERSION}" version --registry=https://registry.npmjs.org/ 2>/dev/null || true)"
-            if [ "${PUBLISHED}" = "${VERSION}" ]; then
-              echo "npm registry returned evidrift@${PUBLISHED}"
+            PUBLISHED_SHA="$(npm view "evidrift@${VERSION}" gitHead --registry=https://registry.npmjs.org/ 2>/dev/null || true)"
+            if [ "${PUBLISHED}" = "${VERSION}" ] && [ "${PUBLISHED_SHA}" = "${TAGGED_SHA}" ]; then
+              echo "npm registry returned evidrift@${PUBLISHED} from ${PUBLISHED_SHA}"
               exit 0
             fi
             sleep 5

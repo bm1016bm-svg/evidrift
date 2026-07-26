@@ -1,8 +1,12 @@
-# Evidrift FAQ: TypeScript API and OpenAPI contract drift
+# Evidrift FAQ: minimal reproductions and API contract drift
 
 ## What problem does Evidrift solve?
 
-AI coding agents often write code against an external assumption: a TypeScript overload accepts a particular parameter, or an OpenAPI operation still has a particular identifier. Code review records the implementation, but usually not that assumption. Evidrift stores the deterministic evidence in the repository and checks it again in CI.
+Evidrift solves two evidence problems. ReproMin turns a noisy failing JSON request into a small reproduction by replaying every accepted reduction. Contract Receipts preserve one external TypeScript or OpenAPI assumption and check it again in CI.
+
+## What is a verified minimal reproduction?
+
+It is a smaller JSON request that still matches one explicit HTTP status plus error identity during real replay. When the probe budget completes, ReproMin establishes 1-minimality under its documented reducers and predicate—not a global minimum or root cause.
 
 ## What is TypeScript API drift?
 
@@ -14,7 +18,7 @@ Evidrift's `json.pointer` adapter selects one canonical value from a repository-
 
 ## How is Evidrift different from contract testing?
 
-Contract testing normally exercises provider and consumer behavior. Evidrift does not execute services or dependency code. It locks one explicit assumption that influenced a code location and revalidates that static contract before merge. The tools can be used together.
+Contract testing normally exercises provider and consumer behavior. Evidrift's contract workflow does not execute services or dependency code; it locks one explicit assumption that influenced a code location. ReproMin deliberately exercises one disposable loopback failure, but it is a reducer rather than a contract test suite. The tools can be used together.
 
 ## How is Evidrift different from RAG or AI code review?
 
@@ -30,8 +34,10 @@ Receipt JSON is treated as untrusted input. `evidrift check` validates schemas, 
 
 ## Does Evidrift fetch URLs or execute commands?
 
-No. TypeScript evidence is read from installed declaration files, and JSON evidence is read from repository-local `.json` files. Receipts cannot trigger shell commands, package imports, network requests, or LLM calls.
+Contract checks do not. TypeScript evidence is read from installed declaration files and JSON evidence from repository-local `.json` files. Receipts cannot trigger shell commands, package imports, network requests, or LLM calls.
+
+`minimize` and `reproduce` are separate CLI-only commands that require explicit confirmation and permit only literal loopback HTTP targets. They reject redirects, common secret-shaped names and token patterns, and remote addresses. That detection is defense in depth rather than a guarantee that a fixture is sanitized. MCP cannot trigger replay.
 
 ## What does Evidrift not support yet?
 
-The current release does not support YAML, remote URLs, remote OpenAPI `$ref`, runtime correctness, semantic equivalence, cloud storage, a Dashboard, automatic repair, or LLM-as-a-judge CI gates.
+Evidrift v0.4.0 does not support cURL import, remote replay, YAML, remote OpenAPI `$ref`, global-minimum or root-cause claims, semantic equivalence, cloud storage, a Dashboard, automatic repair, or LLM-as-a-judge CI gates.

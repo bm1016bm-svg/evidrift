@@ -1,8 +1,8 @@
 {
   "name": "evidrift",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "mcpName": "io.github.bm1016bm-svg/evidrift",
-  "description": "Catch TypeScript API and OpenAPI contract drift in AI-generated code. Local-first CLI and MCP server that revalidates assumptions in CI.",
+  "description": "Turn failing JSON requests into replay-verified reductions, and catch TypeScript or OpenAPI contract drift before merge.",
   "keywords": [
     "ai",
     "ai-coding-agents",
@@ -11,19 +11,24 @@
     "ci",
     "cli",
     "contract-testing",
+    "delta-debugging",
     "dependency-contracts",
     "developer-tools",
     "evidence-lockfile",
     "github-actions",
+    "http-debugging",
     "json-pointer",
     "mcp",
     "mcp-server",
     "model-context-protocol",
+    "minimal-reproduction",
     "openapi-drift",
     "provenance",
+    "reproducible-bug",
     "openapi",
     "static-analysis",
     "typescript",
+    "test-case-reduction",
     "typescript-mcp"
   ],
   "homepage": "https://bm1016bm-svg.github.io/evidrift/",
@@ -81,16 +86,21 @@
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run check"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "1.29.0",
     "chalk": "5.6.2",
     "ora": "9.4.1",
-    "typescript": "5.9.3",
-    "zod": "4.4.3"
+    "typescript": "5.9.3"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.29.0",
     "@types/node": "24.13.3",
     "eslint": "10.7.0",
     "prettier": "3.9.5",
-    "typescript-eslint": "8.64.0"
+    "typescript-eslint": "8.64.0",
+    "zod": "4.4.3"
+  },
+  "overrides": {
+    "@modelcontextprotocol/sdk": {
+      "@hono/node-server": "2.0.12"
+    }
   }
 }

@@ -12,6 +12,7 @@ test('running Evidrift without arguments is a successful, copy-pasteable onboard
   assert.equal(result.status, 0, result.stderr);
   assert.match(result.stdout, /See deterministic drift in one command/u);
   assert.match(result.stdout, /npx --yes evidrift@latest demo/u);
+  assert.match(result.stdout, /evidrift repro-demo/u);
   assert.match(result.stdout, /evidrift init/u);
   assert.equal(result.stderr, '');
 });

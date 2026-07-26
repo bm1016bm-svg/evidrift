@@ -13,16 +13,38 @@ import {
 } from './core.js';
 import { runSignatureDriftDemo } from './demo.js';
 import { runMcpServer } from './mcp.js';
+import {
+  renderCheck,
+  renderDemo,
+  renderExplain,
+  renderMinimize,
+  renderRecord,
+  renderReproMinDemo,
+  renderReproductionVerification,
+  renderResult,
+} from './output.js';
 import { assertSafeRelativePath } from './paths.js';
-import { renderCheck, renderDemo, renderExplain, renderRecord, renderResult } from './output.js';
 import { renderCheckReport } from './report.js';
+import { runReproMinDemo } from './repro-demo.js';
+import {
+  minimizeHttpReproduction,
+  readReproductionArtifact,
+  readRequestFixture,
+  verifyHttpReproduction,
+  writeReproductionArtifact,
+  type FailurePredicate,
+} from './repro-http.js';
+import { ReproductionMismatchError, type JsonValue } from './repro.js';
 import { interactiveTerminalEnabled, withTerminalProgress } from './terminal.js';
 import { escapeOutputText } from './text.js';
 import { EVIDRIFT_VERSION, type AffectedCode } from './types.js';
 
-const HELP = `Evidrift ${EVIDRIFT_VERSION} - catch API drift in AI-generated code
+const HELP = `Evidrift ${EVIDRIFT_VERSION} - replay-verified JSON reductions and API drift evidence
 
-See deterministic drift in one command (nothing to install globally):
+See a replay-verified JSON reduction in one command:
+  npx --yes evidrift@latest repro-demo
+
+See deterministic drift in one command:
   npx --yes evidrift@latest demo
 
 Usage:
@@ -35,9 +57,17 @@ Usage:
   evidrift diff [--root <repo>]
   evidrift explain <receipt-id> [--root <repo>]
   evidrift demo [--root <directory>]
+  evidrift minimize --request <json> --status <code>
+                    (--response-contains <text> | --response-pointer <RFC6901>
+                     --response-equals <json>)
+                    --output <json> --confirm-replay yes
+                    [--max-probes <number>] [--timeout-ms <number>] [--root <repo>]
+  evidrift reproduce --artifact <json> --confirm-replay yes
+                     [--timeout-ms <number>] [--root <repo>]
+  evidrift repro-demo
   evidrift mcp
 
-Exit codes for check: 0 match/warning, 1 contract mismatch, 2 evidence integrity error.`;
+Exit codes: 0 success/match, 1 selected predicate or contract mismatch, 2 invalid or unavailable evidence.`;
 
 interface ParsedArguments {
   command?: string;
@@ -137,6 +167,64 @@ function checkOutputFormat(parsed: ParsedArguments): CheckOutputFormat {
     throw new Error('Option --format must be text or json.');
   }
   return value;
+}
+
+function boundedIntegerOption(
+  parsed: ParsedArguments,
+  name: string,
+  minimum: number,
+  maximum: number,
+  required = false,
+): number | undefined {
+  const raw = option(parsed, name, required);
+  if (raw === undefined) {
+    return undefined;
+  }
+  if (!/^[0-9]+$/u.test(raw)) {
+    throw new Error(`Option --${name} must be an integer between ${minimum} and ${maximum}.`);
+  }
+  const value = Number(raw);
+  if (!Number.isSafeInteger(value) || value < minimum || value > maximum) {
+    throw new Error(`Option --${name} must be an integer between ${minimum} and ${maximum}.`);
+  }
+  return value;
+}
+
+function replayConfirmation(parsed: ParsedArguments): true {
+  if (option(parsed, 'confirm-replay', true) !== 'yes') {
+    throw new Error('Option --confirm-replay must be exactly yes.');
+  }
+  return true;
+}
+
+function failurePredicate(parsed: ParsedArguments): FailurePredicate {
+  const status = boundedIntegerOption(parsed, 'status', 100, 599, true);
+  if (status === undefined) {
+    throw new Error('Required status was not parsed.');
+  }
+  const responseContains = option(parsed, 'response-contains');
+  const responsePointer = option(parsed, 'response-pointer');
+  const responseEquals = option(parsed, 'response-equals');
+  if (responseContains !== undefined) {
+    if (responsePointer !== undefined || responseEquals !== undefined) {
+      throw new Error(
+        '--response-contains cannot be combined with --response-pointer or --response-equals.',
+      );
+    }
+    return { status, responseContains };
+  }
+  if (responsePointer === undefined || responseEquals === undefined) {
+    throw new Error(
+      'Provide --response-contains or both --response-pointer and --response-equals.',
+    );
+  }
+  let expected: unknown;
+  try {
+    expected = JSON.parse(responseEquals);
+  } catch {
+    throw new Error('--response-equals must be a valid JSON value.');
+  }
+  return { status, responsePointer, responseEquals: expected as JsonValue };
 }
 
 export async function runCli(argv: string[]): Promise<number> {
@@ -294,6 +382,84 @@ export async function runCli(argv: string[]): Promise<number> {
         (report) => runSignatureDriftDemo(repoRoot, report),
       );
       console.log(renderDemo(result, renderOptions));
+      return 0;
+    }
+    case 'minimize': {
+      ensureOptions(parsed, [
+        'confirm-replay',
+        'max-probes',
+        'output',
+        'request',
+        'response-contains',
+        'response-equals',
+        'response-pointer',
+        'root',
+        'status',
+        'timeout-ms',
+      ]);
+      if (parsed.positionals.length > 0) {
+        throw new Error('evidrift minimize does not accept positional arguments.');
+      }
+      const requestPath = option(parsed, 'request', true);
+      const outputPath = option(parsed, 'output', true);
+      if (requestPath === undefined || outputPath === undefined) {
+        throw new Error('Required minimize paths were not parsed.');
+      }
+      const maxProbes = boundedIntegerOption(parsed, 'max-probes', 2, 500);
+      const timeoutMs = boundedIntegerOption(parsed, 'timeout-ms', 100, 30_000);
+      const fixture = await readRequestFixture(repoRoot, requestPath);
+      let artifact;
+      try {
+        artifact = await withTerminalProgress('Minimizing the verified loopback failure…', () =>
+          minimizeHttpReproduction(fixture, failurePredicate(parsed), {
+            confirmReplay: replayConfirmation(parsed),
+            ...(maxProbes === undefined ? {} : { maxProbes }),
+            ...(timeoutMs === undefined ? {} : { timeoutMs }),
+          }),
+        );
+      } catch (error) {
+        if (error instanceof ReproductionMismatchError) {
+          console.log(`MISMATCH ${escapeOutputText(error.message)}`);
+          return 1;
+        }
+        throw error;
+      }
+      const written = await writeReproductionArtifact(repoRoot, outputPath, artifact);
+      console.log(renderMinimize(artifact, written));
+      return 0;
+    }
+    case 'reproduce': {
+      ensureOptions(parsed, ['artifact', 'confirm-replay', 'root', 'timeout-ms']);
+      if (parsed.positionals.length > 0) {
+        throw new Error('evidrift reproduce does not accept positional arguments.');
+      }
+      const artifactPath = option(parsed, 'artifact', true);
+      if (artifactPath === undefined) {
+        throw new Error('Required artifact path was not parsed.');
+      }
+      const timeoutMs = boundedIntegerOption(parsed, 'timeout-ms', 100, 30_000);
+      const artifact = await readReproductionArtifact(repoRoot, artifactPath);
+      const verification = await withTerminalProgress(
+        'Replaying the minimized loopback failure once…',
+        () =>
+          verifyHttpReproduction(artifact, {
+            confirmReplay: replayConfirmation(parsed),
+            ...(timeoutMs === undefined ? {} : { timeoutMs }),
+          }),
+      );
+      console.log(renderReproductionVerification(verification.artifact, verification.observation));
+      return verification.observation.matched ? 0 : 1;
+    }
+    case 'repro-demo': {
+      ensureOptions(parsed, []);
+      if (parsed.positionals.length > 0) {
+        throw new Error('evidrift repro-demo does not accept arguments.');
+      }
+      const artifact = await withTerminalProgress(
+        'Reducing a verified failure against a disposable loopback server…',
+        () => runReproMinDemo(),
+      );
+      console.log(renderReproMinDemo(artifact));
       return 0;
     }
     case 'mcp': {

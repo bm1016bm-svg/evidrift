@@ -1,8 +1,8 @@
 # User acceptance test report
 
-This report tests the Evidrift v0.3 source tree as a user would use it: through the CLI, through a real STDIO MCP client, and against temporary repositories with installed local TypeScript and JSON fixtures.
+This report tests the current Evidrift source tree as a user would use it: through the CLI, through a real STDIO MCP client, against disposable loopback HTTP targets, and against temporary repositories with installed local TypeScript and JSON fixtures.
 
-The acceptance target is narrow: Evidrift must resolve a real overloaded TypeScript call, lock one repository JSON value, detect deterministic contract drift, reject inconsistent evidence, and explain the result without executing package code or fetching a URL.
+The acceptance target is narrow: ReproMin must reduce a parsed JSON request while preserving one explicit loopback failure predicate, and the contract workflow must resolve a real overloaded TypeScript call, lock one repository JSON value, detect deterministic contract drift, reject inconsistent evidence, and explain the result without executing dependency code or fetching a URL.
 
 ## Reproduce
 
@@ -13,6 +13,17 @@ npm run uat
 ```
 
 `npm run verify` runs formatting, lint, typecheck, all automated tests, the end-to-end smoke test, and a check of this repository's committed Receipt. `npm run uat` isolates the user-facing acceptance cases.
+
+Local v0.4.0 ReproMin release checkpoint on 2026-07-26:
+
+- Platform: Windows, Node.js `v24.13.0`, npm `11.6.2`.
+- Automated result: `npm run verify` passed 89/89 tests with 0 failures and 0 skips, then passed the smoke test and repository Receipt check. Formatting, lint, typecheck, and release metadata alignment at `v0.4.0` also passed.
+- Cross-platform gate: the CI matrix covers `ubuntu-latest` and `windows-latest` with Node.js 22 and 24. This local Windows result does not claim that the pending clean-checkout GitHub Actions runs have passed.
+- ReproMin result: the packed CLI's disposable demo reduced the selected JSON body from 217 to 46 bytes in 23 HTTP probes, then replayed the result and reported `MATCH`.
+- Packed-install result: a fresh isolated consumer installed `evidrift-0.4.0.tgz`; `--version` returned `0.4.0`, the ReproMin demo completed, and an official MCP SDK `1.29.0` client listed `evidrift_record` and `evidrift_record_json_pointer` from the installed package.
+- Package-content result: the tarball contains 80 entries, including both READMEs and all three ReproMin runtime modules, while excluding `src`, `tests`, and `examples`.
+- Pack result: 84,936 packed bytes, 385,991 unpacked bytes, SHA-256 `cbdd76bb40fb277a7d840924af82fe7ca3a84f8697cc63b060e53058c6cdae7d`. The entry count and sizes come from `npm pack --json`; the hash comes from PowerShell `Get-FileHash` against that exact tarball.
+- Dependency advisory result: the isolated consumer's official-registry install added 19 packages, audited 20 packages, and reported 0 known vulnerabilities. Separate official-registry audits of runtime-only and complete development dependencies also reported 0 known vulnerabilities. These are point-in-time registry results, not proof that the code has no vulnerability.
 
 Local v0.3.3 flagship-release checkpoint on 2026-07-20:
 
@@ -126,6 +137,30 @@ Test counts and pack sizes come only from their final command output. Registry v
 | UAT-58 | Initialize a fresh repository                                  | Create storage and print concrete agent, commit, CI, and demo next steps                 | onboarding and packed-install UAT     |
 | UAT-59 | Regenerate the public demo asset                               | Real transcript contains PASS, changed signatures, affected code, and deterministic FAIL | SEO/discovery test and capture script |
 | UAT-60 | Run `check --format json` for match, drift, and tampering      | Versioned JSON preserves structured results and exit codes `0`, `1`, and `2`             | JSON-report unit and CLI UAT tests    |
+| UAT-61 | Run `evidrift repro-demo`                                      | Disposable loopback failure is minimized and finally reverified without external traffic | ReproMin demo and CLI tests           |
+| UAT-62 | Minimize a noisy loopback JSON request                         | Only candidates matching status plus explicit error identity are retained                | ReproMin HTTP and CLI tests           |
+| UAT-63 | Return the same HTTP 500 with a different error code           | Candidate is rejected as a different failure                                             | ReproMin HTTP predicate test          |
+| UAT-64 | Use LAN, public, hostname, credential, or secret header input  | Input is refused before replay                                                           | ReproMin safety tests                 |
+| UAT-65 | Redirect a permitted loopback URL                              | Redirect is not followed                                                                 | ReproMin redirect test                |
+| UAT-66 | Omit explicit replay confirmation                              | State-changing replay is refused                                                         | ReproMin confirmation test            |
+| UAT-67 | Exhaust the probe budget                                       | Last verified candidate is returned with a visibly limited claim                         | Reducer budget test                   |
+| UAT-68 | Modify a minimized request without updating its ID             | Artifact verification fails before replay                                                | ReproMin artifact-tamper test         |
+| UAT-69 | Replay a valid reproduction artifact                           | One explicit request returns `MATCH`/`MISMATCH` with exit `0`/`1`                        | ReproMin CLI test                     |
+| UAT-70 | Point at an unavailable loopback target                        | Exit `2`; no artifact is written                                                         | ReproMin CLI unavailable-target test  |
+| UAT-71 | Send malformed, fragmented, or invalid UTF-8 STDIO MCP input   | Bounded transport accepts valid fragments and rejects invalid protocol input             | raw MCP transport tests               |
+| UAT-72 | Launch the packed MCP entrypoint with the official SDK client  | Handshake succeeds and exactly the two contract-recording tools are listed               | packed-install checkpoint             |
+| UAT-73 | Put invalid UTF-8 bytes inside an otherwise valid JSON fixture | Input is rejected before replay instead of silently substituting replacement text        | ReproMin fixture test                 |
+
+## ReproMin evidence boundary
+
+ReproMin tests start real disposable HTTP servers bound to `127.0.0.1`; they do not contact
+an external service. The acceptance evidence establishes that every retained candidate
+matched the selected status plus response identity during that run. It does not establish a
+global minimum, root cause, harmless side effects, or behavior on an untested application.
+
+The artifact ID covers the minimized request and predicate. Responses and credentials are not
+stored. A candidate timeout, connection failure, oversized response, or malformed error body
+is unavailable evidence and cannot be accepted as proof that the original failure disappeared.
 
 ## Tamper behavior
 
@@ -164,7 +199,7 @@ Validation happens before dependency or JSON resolution. Evidrift does not fetch
 
 ## Business value supported by these tests
 
-The tests support six concrete claims:
+The tests support seven concrete claims:
 
 1. A dependency call signature can change without an application-file diff, and Evidrift can block that merge with the old and new signatures side by side.
 2. A coding agent can record evidence through MCP but cannot submit a raw Receipt or mark its own work verified.
@@ -172,6 +207,7 @@ The tests support six concrete claims:
 4. Revalidation needs no Evidrift account, API key, paid service, network call, package JavaScript execution, or LLM judgment.
 5. One repository-local OpenAPI or JSON Schema value can drift independently of unrelated document content, and CI classifies those cases differently.
 6. CI systems and coding agents can consume a versioned JSON result without parsing human text or losing Evidrift's exit-code policy.
+7. A large JSON request can be reduced against a disposable loopback service while preserving an explicit status-plus-error predicate, with a content-addressed artifact that can be replayed once.
 
 No customer, revenue, time-saving, defect-reduction, or performance claim has been inferred from these tests. Those would require real usage data.
 
@@ -188,5 +224,5 @@ No customer, revenue, time-saving, defect-reduction, or performance claim has be
 - `json.pointer` reads `.json` only. It does not resolve YAML, URLs, remote `$ref`, JSON Schema semantics, or semantic equivalence.
 - JSON files are capped at 4 MiB and selected canonical values at 1 MiB.
 - Free-text claims are stored for humans; Evidrift does not semantically prove them.
-- Runtime correctness, dependency security, web content, arbitrary commands, Cloud, Dashboard, and multi-process write locking are outside v0.3.
+- Dependency security, remote web content, arbitrary commands, Cloud, Dashboard, and multi-process write locking remain outside scope. ReproMin evaluates only one explicit loopback failure predicate; it does not establish broader runtime correctness.
 - Passing tests demonstrates the covered deterministic behavior on the tested environment. It is not proof that the software has no defects.

@@ -44,10 +44,17 @@
           <details open>
             <summary>Evidrift 解決什麼問題？</summary>
             <p>
-              Coding Agent 常依賴外部 assumption 寫程式，例如某條 TypeScript overload 接受特定
-              parameter，或某個 OpenAPI operation 仍使用指定 identifier。Code review
-              通常只留下實作，沒有保存這個理由。Evidrift 把 deterministic evidence 存進
-              repository，再交給 CI 重新檢查。
+              ReproMin 把吵雜的 failing JSON request 縮成經重播驗證的結果。Contract Receipt 則保存
+              TypeScript 或 OpenAPI 外部 assumption，再交給 CI 重新檢查。
+            </p>
+          </details>
+
+          <details>
+            <summary>什麼是 verified minimal reproduction？</summary>
+            <p>
+              它是較小、但在真實 replay 中仍符合明確 HTTP status 與 error identity 的 JSON
+              request。Probe budget 完成時，ReproMin 只建立在文件列出的 reducers 與 predicate 下為
+              1-minimal；不宣稱 global minimum 或 root cause。
             </p>
           </details>
 
@@ -110,19 +117,20 @@
           <details>
             <summary>Evidrift 會抓 URL 或執行 command 嗎？</summary>
             <p>
-              不會。TypeScript evidence 來自已安裝 declaration file，JSON evidence 來自
-              repository-local
-              <code>.json</code>。Receipt 無法觸發 shell command、package import、network request 或
-              LLM call。
+              Contract check 不會。Receipt 無法觸發 shell command、package import、network request
+              或 LLM call。<code>minimize</code> 與 <code>reproduce</code>
+              是分離的 CLI-only 指令；明確確認後也只允許 literal loopback HTTP target，拒絕
+              redirect、remote address 與常見 secret-shaped input。Secret detection 只是 defense in
+              depth，分享前仍須人工檢查；MCP 無法觸發 replay。
             </p>
           </details>
 
           <details>
             <summary>目前還不支援什麼？</summary>
             <p>
-              v0.3.3 不支援 YAML、remote URL、remote OpenAPI <code>$ref</code>、runtime
-              correctness、semantic equivalence、cloud storage、Dashboard、automatic repair 或
-              LLM-as-a-judge CI gate。
+              Evidrift v0.4.0 不支援 cURL import、remote replay、YAML、remote OpenAPI
+              <code>$ref</code>、global-minimum 或 root-cause claim、semantic equivalence、cloud
+              storage、Dashboard、automatic repair 或 LLM-as-a-judge CI gate。
             </p>
           </details>
         </section>
@@ -137,7 +145,7 @@
       </main>
 
       <footer>
-        <span>Evidrift v0.3.3 · FAQ · 繁體中文</span>
+        <span>Evidrift v0.4.0 · FAQ · 繁體中文</span>
         <span><a href="./">返回繁中首頁</a></span>
       </footer>
     </div>

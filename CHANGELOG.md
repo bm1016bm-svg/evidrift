@@ -4,15 +4,26 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-07-26
+
 ### Added
 
 - `evidrift check --format json` with a versioned, deterministic report contract for CI systems, coding agents, and other integrations.
 - Public report helpers and types: `CHECK_REPORT_SCHEMA_VERSION`, `createCheckReport`, `renderCheckReport`, `CheckReport`, and `CheckReportSummary`.
 - Unit and end-to-end coverage for passing, contract-mismatch, and integrity-error JSON reports while preserving exit codes `0`, `1`, and `2`.
+- `evidrift repro-demo`, a zero-configuration minimal-reproduction workflow using a disposable loopback HTTP server.
+- `evidrift minimize` for deterministic JSON request reduction against an explicit HTTP status plus error identity.
+- `evidrift reproduce` for one-shot verification of content-addressed reproduction artifacts.
+- Public reducer, request, predicate, observation, and artifact APIs without adding a runtime dependency.
+- Security and UAT coverage for loopback confinement, redirect refusal, common secret-pattern rejection, strict UTF-8, fixed-size cache keys, total probe budgets, wall-clock timeouts, artifact tampering, and baseline/final verification.
+- A root GitHub Action for the existing network-free contract-drift check, ready for Marketplace submission after release.
 
 ### Changed
 
 - JSON check mode disables interactive progress and omits timestamps and absolute repository roots so equal results serialize identically.
+- Evidrift now presents failure minimization and contract drift as two isolated evidence workflows under one CLI and package.
+- The contract Receipt and MCP trust model remains network-free; replay is CLI-only, explicit, bounded, and excluded from `evidrift check`.
+- The two-tool STDIO server now uses a bounded JSON-RPC adapter with strict protocol validation, UTF-8 decoding, message and session limits, while the official MCP SDK remains the compatibility-test client. This removes the unused HTTP server stack from consumer installs.
 
 ## [0.3.3] - 2026-07-20
 

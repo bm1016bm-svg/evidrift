@@ -1,0 +1,27 @@
+name: Evidrift Contract Drift Check
+description: Revalidate content-addressed TypeScript and OpenAPI assumptions before merge.
+author: bm1016bm-svg
+
+branding:
+  icon: shield
+  color: green
+
+inputs:
+  root:
+    description: Repository-relative root containing .evidrift/evidence.lock.
+    required: false
+    default: .
+  format:
+    description: Output format, text or json.
+    required: false
+    default: text
+
+runs:
+  using: composite
+  steps:
+    - name: Revalidate Evidrift contract evidence
+      shell: bash
+      env:
+        EVIDRIFT_ACTION_FORMAT: ${{ inputs.format }}
+        EVIDRIFT_ACTION_ROOT: ${{ inputs.root }}
+      run: node "$GITHUB_ACTION_PATH/scripts/run-action.mjs"

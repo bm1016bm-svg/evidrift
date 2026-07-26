@@ -1,4 +1,4 @@
-# Evidrift — 檢查 AI 產生的 TypeScript 與 OpenAPI 程式碼是否發生 API drift
+# Evidrift — 重播驗證的 JSON 縮減與 API drift evidence
 
 [English](README.md) | [繁體中文](README.zh-TW.md)
 
@@ -6,19 +6,50 @@
 [![npm version](https://img.shields.io/npm/v/evidrift.svg)](https://www.npmjs.com/package/evidrift)
 [![Website](https://img.shields.io/badge/docs-GitHub%20Pages-111111.svg)](https://bm1016bm-svg.github.io/evidrift/zh-TW/)
 
-> **Code compiles. APIs drift. Evidrift 是 AI assumptions 的 lockfile。**
+> **失敗輸入總是很吵，API drift 卻很安靜。Evidrift 把兩者變成 deterministic evidence。**
 
-Coding Agent 可能依照今天的 TypeScript dependency 或 OpenAPI contract 寫出程式，但外部 contract 明天就變了。Evidrift 會把實際使用的 call signature 或 repository-local JSON value 記錄成 content-addressed Receipt，再讓 CI 在合併前重新計算。
+Evidrift 提供兩條刻意分離的工作流程：
 
-Local-first CLI、STDIO MCP Server。不需要帳號、雲端後端或 LLM judge，也不會執行 dependency package code。
+- **ReproMin**：反覆移除 JSON 資料、把每個 candidate 重送到可丟棄的本機 HTTP target，只有仍符合相同 failure predicate 的 reduction 才會保留。
+- **Contract drift**：把實際使用的 TypeScript call signature 或 repository-local JSON value 記錄成 content-addressed Receipt，再讓 CI 在 merge 前重新計算。
 
-Evidrift 能確定性偵測指定的 TypeScript overload／parameter drift、透過 RFC 6901 JSON Pointer 選取的 OpenAPI 或 JSON Schema value drift，以及遭到手動修改或偽造的 Receipt。
+Local-first CLI；STDIO MCP Server 只負責 contract recording。不需要帳號、雲端後端、telemetry 或 LLM judge。
 
 ![Evidrift — AI dependency lockfile](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-hero.png)
 
 [![實際 Evidrift CLI demo：dependency contract 先通過，TypeScript signature 改變後在 merge 前被攔下](https://raw.githubusercontent.com/bm1016bm-svg/evidrift/main/docs/assets/evidrift-demo.gif)](#快速開始--用一個指令看到-drift)
 
 這段動畫由[實際擷取的 CLI transcript](https://github.com/bm1016bm-svg/evidrift/blob/main/docs/assets/evidrift-demo-transcript.txt)產生。`PASS`、改變前後的 signature、affected file 與 deterministic `FAIL` 都來自本機執行的 `evidrift demo`；只有場景標題是後製文字。
+
+## 快速開始 — 縮小失敗的 JSON request
+
+需要 Node.js 22 或更新版本。零設定 demo 會啟動可丟棄的 loopback server、確認一個 HTTP failure、縮小 request、再次驗證結果，最後關閉 server：
+
+```bash
+npx --yes evidrift@latest repro-demo
+```
+
+每個保留的 reduction 都真的執行過，而且必須同時符合指定的 HTTP status 與 error identity；不是交給 LLM 判斷「看起來像同一個錯誤」。
+
+針對自己的本機 endpoint：
+
+```bash
+npx evidrift minimize \
+  --request failing-request.json \
+  --status 500 \
+  --response-pointer /error/code \
+  --response-equals '"INVALID_FILTER"' \
+  --output minimal-repro.json \
+  --confirm-replay yes
+```
+
+產生的 content-addressed artifact 可以再重播一次：
+
+```bash
+npx evidrift reproduce --artifact minimal-repro.json --confirm-replay yes
+```
+
+完整 fixture、保證範圍與 replay 安全邊界請看英文版 [ReproMin 文件](docs/repro-min.md)。
 
 ## 快速開始 — 用一個指令看到 drift
 
@@ -36,12 +67,13 @@ npx --yes evidrift@latest demo
 
 ## 目前支援範圍
 
-| Surface                          | Deterministic evidence                                             | 狀態      |
-| -------------------------------- | ------------------------------------------------------------------ | --------- |
-| 已安裝的 TypeScript dependency   | Selected call signature、parameter、package version 與 declaration | 支援      |
-| Repository OpenAPI / JSON Schema | 透過 RFC 6901 JSON Pointer 選取的 canonical value                  | 支援 JSON |
-| CLI 與 local STDIO MCP           | 共用相同的 record 與 revalidation core                             | 支援      |
-| YAML、URL、remote `$ref`         | 無；Evidrift 會拒絕輸入，不會做出不安全的保證                      | 不支援    |
+| Surface                                         | Deterministic evidence                                             | 狀態      |
+| ----------------------------------------------- | ------------------------------------------------------------------ | --------- |
+| Loopback HTTP JSON failure                      | 同時符合 status 與 error identity 的 replayed reduction            | 僅 CLI    |
+| 已安裝的 TypeScript dependency                  | Selected call signature、parameter、package version 與 declaration | 支援      |
+| Repository OpenAPI / JSON Schema                | 透過 RFC 6901 JSON Pointer 選取的 canonical value                  | 支援 JSON |
+| Contract CLI 與 local STDIO MCP                 | 共用相同的 record 與 revalidation core                             | 支援      |
+| Remote replay、cURL import、YAML、remote `$ref` | 無；Evidrift 會拒絕輸入，不會猜測                                  | 不支援    |
 
 ## 安裝 — 加入現有 Repository
 
@@ -99,6 +131,9 @@ Coding Agent 透過 `evidrift_record` 與 `evidrift_record_json_pointer` 呼叫�
 
 ```mermaid
 flowchart LR
+  Human["開發者"] --> Minimize["縮小 failing JSON"]
+  Minimize --> Replay["Replay loopback failure"]
+  Replay --> Repro["Content-addressed reproduction"]
   Author["Coding Agent 或開發者"] --> Record["記錄一項 assumption"]
   Record --> Adapter["TypeScript 或 JSON adapter"]
   Adapter --> Receipt["Content-addressed Receipt"]
@@ -155,6 +190,8 @@ Evidrift 會寫入一份 lock，以及每張 Receipt 對應的一個 immutable J
 
 完整 [GitHub Actions 設定](docs/ci.md)使用 read-only permission、鎖定的 npm dependency 與固定到 commit 的 Actions。
 
+Repository 的 root `action.yml` 提供 Marketplace-ready contract check。它只執行 network-free contract workflow，永遠不會觸發 ReproMin replay。
+
 ## CI 行為
 
 `evidrift check` 不信任儲存的 `matched` 或 `verified` flag。它會驗證 Receipt、重新載入來源，再計算 selected signature 或 JSON value。
@@ -202,7 +239,7 @@ Action: Do not trust or hand-edit this Receipt. Restore it from version control,
 
 ### 什麼是 API drift？
 
-API drift 是 dependency 或 contract 在消費端程式寫完後發生改變。Evidrift v0.3.3 檢查兩種 deterministic evidence：affected code location 實際選到的 TypeScript call signature，以及 repository-local OpenAPI JSON 或 JSON Schema 中選定的 canonical value。
+API drift 是 dependency 或 contract 在消費端程式寫完後發生改變。Evidrift 檢查兩種 deterministic evidence：affected code location 實際選到的 TypeScript call signature，以及 repository-local OpenAPI JSON 或 JSON Schema 中選定的 canonical value。
 
 ### Evidrift 是 contract-testing tool 嗎？
 
@@ -214,7 +251,9 @@ API drift 是 dependency 或 contract 在消費端程式寫完後發生改變。
 
 ### Evidrift 會抓 OpenAPI URL 或執行 package code 嗎？
 
-不會。v0.3.3 adapters 只檢查已安裝的 TypeScript declaration 與 repository-local `.json` file；不會抓 URL、解析 remote `$ref`、import dependency JavaScript 或執行 arbitrary command。
+Contract adapters 不會。它們只檢查已安裝的 TypeScript declaration 與 repository-local `.json` file；不會抓 URL、解析 remote `$ref`、import dependency JavaScript 或執行 arbitrary command。
+
+`minimize` 與 `reproduce` 是分離且明確的 replay 指令。使用者傳入 `--confirm-replay yes` 後，它們只會把 JSON 傳到 literal loopback HTTP address；不會在 `check` 或 MCP tool 中執行。
 
 ### Evidrift 能證明 AI 產生的程式碼正確嗎？
 
@@ -233,10 +272,15 @@ evidrift check [--format text|json]
 evidrift diff
 evidrift explain <receipt-id>
 evidrift demo
+evidrift repro-demo
+evidrift minimize --request <json> --status <code> \
+  (--response-contains <text> | --response-pointer <RFC6901> --response-equals <json>) \
+  --output <json> --confirm-replay yes
+evidrift reproduce --artifact <json> --confirm-replay yes
 evidrift mcp
 ```
 
-所有指令都接受 `--root <repo>`。`record` 要求 repository 中已有初始化完成的 `.evidrift/evidence.lock`。
+Repository-scoped 指令接受 `--root <repo>`。`record` 要求 repository 中已有初始化完成的 `.evidrift/evidence.lock`；`repro-demo` 與 `mcp` 不使用 repository root。
 
 `evidrift mcp` 會啟動 `evidrift-mcp` bin 所提供的同一個 local STDIO server，讓 package registry 與 MCP client 能從主要 npm package 確定性啟動 Evidrift。
 
@@ -254,11 +298,15 @@ Parser 最多接受 1,024 個 Receipt ID，以及每個 symbol 64 個 call signa
 
 Content hash 能偵測不一致修改，但不證明作者身分。若有人重寫 Receipt、重新計算 ID 並更新 `evidence.lock`，仍可產生新的 internally valid evidence；Git review 與 branch protection 必須攔下這種 replacement。請參考英文版 [Architecture](docs/architecture.md)。
 
+ReproMin 具有分離的 boundary，因為 replay 可能產生 side effect。它只接受 literal loopback HTTP target、拒絕 redirect 與常見 secret-shaped input、要求明確確認並限制 request／response 資源；`check` 與 MCP Server 永遠不會觸發 replay。Artifact 記錄 Evidrift 當時觀察到的結果；content hash 能偵測不一致修改，但不驗證 probe history。`reproduce` 只驗證目前這一次 replay。
+
 ## Evidrift 不能保證什麼
 
-Evidrift 不證明程式碼正確、不證明 free-text claim 為真、不檢查 runtime behavior、不消除 hallucination、不掃描 dependency vulnerability，也不驗證 arbitrary URL。
+Evidrift 不證明程式碼正確。Contract workflow 不證明 free-text claim 為真、不執行 runtime behavior、不消除 hallucination、不掃描 dependency vulnerability，也不驗證 arbitrary URL。
 
-v0.3 source tree 能在 consumer code 可編譯、TypeScript 能辨識唯一 declared overload 時，從 affected `path:line` 解析 overloaded call。Invalid、ambiguous 或 missing call 會被拒絕，不會猜測；`--overload` 是明確 fallback。Receipt 儲存 selected normalized signature 與 hash，所以 declaration reordering 不會造成 false drift。
+ReproMin 不證明 global minimum，也不找 root cause。Probe budget 未耗盡時，它只建立「在文件列出的 JSON reducers 與 selected failure predicate 下為 1-minimal」的證據；太弱的 predicate 仍可能描述錯誤的 bug，所以 status alone 會被拒絕。
+
+Contract workflow 能在 consumer code 可編譯、TypeScript 能辨識唯一 declared overload 時，從 affected `path:line` 解析 overloaded call。Invalid、ambiguous 或 missing call 會被拒絕，不會猜測；`--overload` 是明確 fallback。Receipt 儲存 selected normalized signature 與 hash，所以 declaration reordering 不會造成 false drift。
 
 `json.pointer` adapter 只鎖定 repository-local `.json` 的 canonical value，不支援 YAML、URL、remote `$ref`、schema validation 或 semantic equivalence。它會追蹤 repository-local TypeScript declaration import，但不會把所有 named type 展開成 deep structural contract。Missing 或 unreadable source 會產生可見但 non-blocking warning。這些是明確限制，不是隱藏保證。
 
@@ -275,7 +323,7 @@ npm run uat
 npm run check
 ```
 
-`npm run verify` 是 release gate。測試只使用 temporary local fixture，不需要 secret、付費 API、Evidrift backend 或 network access。詳細的 [UAT report](docs/UAT.md) 會把每個 acceptance case 對應到 automated test，並列出仍然存在的風險。
+`npm run verify` 是 release gate。測試只使用 temporary fixture 與 disposable loopback server，不需要 secret、付費 API、Evidrift backend 或外部 network access。詳細的 [UAT report](docs/UAT.md) 會把每個 acceptance case 對應到 automated test，並列出仍然存在的風險。
 
 ## 翻譯與機器介面
 

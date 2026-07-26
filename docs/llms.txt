@@ -1,10 +1,11 @@
 # Evidrift
 
-> Evidrift is a local-first CLI and STDIO MCP server that records deterministic assumptions behind AI-generated TypeScript and OpenAPI code, then revalidates them in CI when APIs drift.
+> Evidrift is a local-first CLI that turns failing JSON requests into replay-verified reductions and revalidates explicit TypeScript or OpenAPI assumptions when contracts drift.
 
 ## Try it
 
-- Demo: `npx --yes evidrift@latest demo`
+- ReproMin demo: `npx --yes evidrift@latest repro-demo`
+- Contract-drift demo: `npx --yes evidrift@latest demo`
 - Initialize a repository: `npx --yes evidrift@latest init`
 - Real CLI demo animation: https://bm1016bm-svg.github.io/evidrift/assets/evidrift-demo.gif
 - npm: https://www.npmjs.com/package/evidrift
@@ -12,6 +13,8 @@
 
 ## Deterministic evidence
 
+- `minimize`: replays JSON candidates against a literal loopback target and accepts a reduction only when HTTP status plus explicit error identity still match.
+- Reproduction artifacts: content-address the minimized request and predicate, preserve bounded probe evidence, and can be verified once with `evidrift reproduce`.
 - `typescript.symbol`: records the installed package version, resolved declaration path, selected overload or parameter, normalized call signature, and signature hash.
 - `json.pointer`: records a canonical value from a repository-local OpenAPI JSON or JSON Schema file through RFC 6901 JSON Pointer.
 - Receipt integrity: canonical serialization plus content-addressed SHA-256 identifiers; saved status fields are never trusted by `evidrift check`.
@@ -30,6 +33,7 @@
 - Traditional Chinese FAQ: https://bm1016bm-svg.github.io/evidrift/zh-TW/faq.html
 - Traditional Chinese TypeScript signature-drift case: https://bm1016bm-svg.github.io/evidrift/zh-TW/cases/typescript-signature-drift.html
 - Architecture and trust boundaries: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/architecture.md
+- ReproMin workflow and safety boundary: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/repro-min.md
 - GitHub Actions setup: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/ci.md
 - Receipt schema: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/receipt-schema.md
 - User acceptance tests: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/UAT.md
@@ -38,4 +42,4 @@
 
 ## Deliberate limits
 
-Evidrift does not prove runtime correctness, validate free-text semantics, fetch arbitrary URLs, resolve remote OpenAPI references, execute dependency code, or use an LLM judge in CI. Source changes warn; only deterministic contract mismatches fail by default.
+Evidrift does not prove code correct, identify root cause, claim a global minimum, fetch arbitrary URLs, resolve remote OpenAPI references, execute dependency code, or use an LLM judge in CI. ReproMin is CLI-only and limited to explicit loopback replay; contract checks and MCP remain network-free.

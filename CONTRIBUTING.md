@@ -9,13 +9,13 @@ npm ci
 npm run verify
 ```
 
-Node.js 22 or newer is required. Tests must run from a clean clone without secrets, paid APIs, external services, or network access after dependency installation.
+Node.js 22 or newer is required. Tests must run from a clean clone without secrets, paid APIs, or external services. ReproMin tests may bind a disposable loopback server; no test may contact an external network after dependency installation.
 
 ## Pull requests
 
-- Keep changes inside the documented v0.3 trust model unless an issue establishes a new scope.
+- Keep changes inside the documented contract or ReproMin trust model unless an issue establishes a new scope.
 - Add tests for behavior and security boundaries.
-- Do not add arbitrary command execution, LLM judgments, or stored verification flags to receipts.
+- Do not add arbitrary command execution, LLM judgments, stored verification flags to Receipts, or model-triggered HTTP replay.
 - Update architecture/schema documentation when an invariant changes.
 - Run `npm run verify` before opening a pull request.
 - Explain any Receipt fixture change; content-addressed IDs must be regenerated intentionally.

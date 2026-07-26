@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "url": "http://127.0.0.1:4319/search",
+  "method": "POST",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "traceId": "example-123",
+    "query": "quarterly report",
+    "filters": {
+      "region": ["north", "south"],
+      "date": {
+        "from": "2026-01-01",
+        "to": "2026-07-26"
+      },
+      "unsupported": {
+        "mode": "explode",
+        "retries": [1, 2, 3]
+      }
+    },
+    "page": {
+      "number": 1,
+      "size": 100
+    }
+  }
+}
