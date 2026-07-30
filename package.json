@@ -1,6 +1,6 @@
 {
   "name": "evidrift",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "mcpName": "io.github.bm1016bm-svg/evidrift",
   "description": "Turn failing JSON requests into replay-verified reductions, and catch TypeScript or OpenAPI contract drift before merge.",
   "keywords": [

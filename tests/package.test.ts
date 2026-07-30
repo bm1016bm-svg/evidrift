@@ -48,8 +48,10 @@ test('npm tarball contains the executable surface and excludes source, tests, an
     'LICENSE',
     'README.md',
     'README.zh-TW.md',
+    'dist/src/annotations.js',
     'dist/src/cli.js',
     'dist/src/demo.js',
+    'dist/src/github-actions.js',
     'dist/src/index.js',
     'dist/src/mcp.js',
     'dist/src/repro-demo.js',
@@ -160,6 +162,8 @@ test('root Action metadata is Marketplace-ready and delegates without a shell', 
   assert.match(metadata, /^name: Evidrift Contract Drift Check$/mu);
   assert.match(metadata, /^description: .+$/mu);
   assert.match(metadata, /^branding:$/mu);
+  assert.match(metadata, /^\s+annotations:$/mu);
+  assert.match(metadata, /^\s+default: github$/mu);
   assert.match(metadata, /^\s+using: composite$/mu);
   assert.match(metadata, /node "\$GITHUB_ACTION_PATH\/scripts\/run-action\.mjs"/u);
   assert.match(runner, /`evidrift@\$\{version\}`/u);
@@ -174,6 +178,7 @@ test('root Action metadata is Marketplace-ready and delegates without a shell', 
   assert.match(runner, /'--root',\s+targetRoot/su);
   assert.match(runner, /npm_config_registry: 'https:\/\/registry\.npmjs\.org\/'/u);
   assert.match(runner, /'--format',\s+format/su);
+  assert.match(runner, /'--annotations',\s+annotations/su);
   assert.match(runner, /shell: false/u);
   assert.doesNotMatch(runner, /shell:\s*true/u);
   assert.doesNotMatch(runner, /exec(?:File|Sync)?\(/u);

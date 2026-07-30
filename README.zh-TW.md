@@ -83,6 +83,15 @@ npx --yes evidrift@latest demo
 npx --yes evidrift@latest init
 ```
 
+若要加入可重複執行、並在 PR 顯示檔案與行號標註的 workflow：
+
+```bash
+npx --yes evidrift@latest init --github-actions
+```
+
+Initializer 會偵測 npm、pnpm 或 Yarn，加入 `scripts.evidrift:check`，並建立
+`.github/workflows/evidrift.yml`。如果 script 或 workflow 已存在，Evidrift 會保留原檔並回報，不會覆寫。
+
 如果要為團隊或 CI 固定版本：
 
 ```bash
@@ -171,24 +180,35 @@ Evidrift 會寫入一份 lock，以及每張 Receipt 對應的一個 immutable J
 
 ## 加入 CI
 
-把 Evidrift 固定為 development dependency，並提供穩定的 package script：
+自動產生 package script 與 read-only pull-request workflow：
+
+```bash
+npx evidrift init --github-actions
+```
+
+產生的 package script 會固定目前的 Evidrift release：
 
 ```json
 {
   "scripts": {
-    "evidrift:check": "evidrift check"
+    "evidrift:check": "npx --yes evidrift@0.4.1 check"
   }
 }
 ```
 
-在 `npm ci` 後把它設為必要 CI step：
+本機可用 `npm run evidrift:check` 執行相同的固定版本檢查。
 
-```yaml
-- name: Revalidate Evidrift receipts
-  run: npm run evidrift:check
+產生的 workflow 會先安裝 repository 的 locked dependencies，並停用 lifecycle scripts，
+再執行 Marketplace Action。Contract mismatch 與 integrity failure 會在 affected file/line
+顯示 PR error；source changed 與 unavailable evidence 會顯示 warning。
+
+```bash
+evidrift check --annotations github
 ```
 
-完整 [GitHub Actions 設定](docs/ci.md)使用 read-only permission、鎖定的 npm dependency 與固定到 commit 的 Actions。
+搭配 `--format json` 時，GitHub workflow command 會寫到 standard error，因此 standard
+output 仍是有效 JSON。完整 [GitHub Actions 設定](docs/ci.md)說明 generated workflow、
+permission、package-manager 行為與手動設定方式。
 
 Repository 的 root `action.yml` 提供 Marketplace-ready contract check。它只執行 network-free contract workflow，永遠不會觸發 ReproMin replay。
 
@@ -264,11 +284,11 @@ Contract adapters 不會。它們只檢查已安裝的 TypeScript declaration �
 ## CLI
 
 ```text
-evidrift init
+evidrift init [--github-actions]
 evidrift record --project <path> --package <name> --symbol <name> \
   [--parameter <name>] [--overload <number>] --claim <text> --code <path[:line]>
 evidrift record --json <path> --pointer <RFC6901> --claim <text> --code <path[:line]>
-evidrift check [--format text|json]
+evidrift check [--format text|json] [--annotations none|github]
 evidrift diff
 evidrift explain <receipt-id>
 evidrift demo

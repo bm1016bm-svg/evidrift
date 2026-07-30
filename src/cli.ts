@@ -3,6 +3,7 @@
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+import { renderGitHubAnnotations } from './annotations.js';
 import {
   checkExitCode,
   checkRepository,
@@ -12,6 +13,7 @@ import {
   resolveCliProjectRoot,
 } from './core.js';
 import { runSignatureDriftDemo } from './demo.js';
+import { configureGitHubActions } from './github-actions.js';
 import { runMcpServer } from './mcp.js';
 import {
   renderCheck,
@@ -48,12 +50,12 @@ See deterministic drift in one command:
   npx --yes evidrift@latest demo
 
 Usage:
-  evidrift init [--root <repo>]
+  evidrift init [--github-actions] [--root <repo>]
   evidrift record --package <name> --symbol <name> [--parameter <name>] [--overload <number>]
                --claim <text> --code <path[:line]> [--project <path>] [--root <repo>]
   evidrift record --json <path> --pointer <RFC6901> --claim <text> --code <path[:line]>
                [--root <repo>]
-  evidrift check [--format text|json] [--root <repo>]
+  evidrift check [--format text|json] [--annotations none|github] [--root <repo>]
   evidrift diff [--root <repo>]
   evidrift explain <receipt-id> [--root <repo>]
   evidrift demo [--root <directory>]
@@ -73,15 +75,20 @@ interface ParsedArguments {
   command?: string;
   positionals: string[];
   options: Map<string, string>;
+  flags: Set<string>;
   help: boolean;
   version: boolean;
 }
 
 type CheckOutputFormat = 'text' | 'json';
+type CheckAnnotations = 'none' | 'github';
+
+const VALUELESS_FLAGS = new Set(['github-actions']);
 
 function parseArguments(argv: string[]): ParsedArguments {
   const positionals: string[] = [];
   const options = new Map<string, string>();
+  const flags = new Set<string>();
   let command: string | undefined;
   let help = false;
   let version = false;
@@ -101,6 +108,13 @@ function parseArguments(argv: string[]): ParsedArguments {
     }
     if (item.startsWith('--')) {
       const key = item.slice(2);
+      if (VALUELESS_FLAGS.has(key)) {
+        if (flags.has(key)) {
+          throw new Error(`Option ${item} was provided more than once.`);
+        }
+        flags.add(key);
+        continue;
+      }
       const value = argv[index + 1];
       if (!key || value === undefined || value.startsWith('--')) {
         throw new Error(`Option ${item} requires a value.`);
@@ -118,7 +132,14 @@ function parseArguments(argv: string[]): ParsedArguments {
       positionals.push(item);
     }
   }
-  return { ...(command === undefined ? {} : { command }), positionals, options, help, version };
+  return {
+    ...(command === undefined ? {} : { command }),
+    positionals,
+    options,
+    flags,
+    help,
+    version,
+  };
 }
 
 function option(parsed: ParsedArguments, name: string, required = false): string | undefined {
@@ -129,9 +150,18 @@ function option(parsed: ParsedArguments, name: string, required = false): string
   return value;
 }
 
-function ensureOptions(parsed: ParsedArguments, allowed: readonly string[]): void {
+function ensureOptions(
+  parsed: ParsedArguments,
+  allowed: readonly string[],
+  allowedFlags: readonly string[] = [],
+): void {
   for (const name of parsed.options.keys()) {
     if (!allowed.includes(name)) {
+      throw new Error(`Unknown option --${name}.`);
+    }
+  }
+  for (const name of parsed.flags) {
+    if (!allowedFlags.includes(name)) {
       throw new Error(`Unknown option --${name}.`);
     }
   }
@@ -165,6 +195,14 @@ function checkOutputFormat(parsed: ParsedArguments): CheckOutputFormat {
   const value = option(parsed, 'format') ?? 'text';
   if (value !== 'text' && value !== 'json') {
     throw new Error('Option --format must be text or json.');
+  }
+  return value;
+}
+
+function checkAnnotations(parsed: ParsedArguments): CheckAnnotations {
+  const value = option(parsed, 'annotations') ?? 'none';
+  if (value !== 'none' && value !== 'github') {
+    throw new Error('Option --annotations must be none or github.');
   }
   return value;
 }
@@ -242,16 +280,31 @@ export async function runCli(argv: string[]): Promise<number> {
   const repoRoot = path.resolve(option(parsed, 'root') ?? process.cwd());
   switch (parsed.command) {
     case 'init': {
-      ensureOptions(parsed, ['root']);
+      ensureOptions(parsed, ['root'], ['github-actions']);
       if (parsed.positionals.length > 0) {
         throw new Error('evidrift init does not accept positional arguments.');
       }
       const created = await initEvidrift(repoRoot);
+      const githubActions = parsed.flags.has('github-actions')
+        ? await configureGitHubActions(repoRoot)
+        : undefined;
       console.log(
         [
           created
             ? 'Initialized .evidrift/evidence.lock and .evidrift/receipts/.'
             : 'Evidrift already initialized.',
+          ...(githubActions === undefined
+            ? []
+            : [
+                `GitHub Actions: ${githubActions.workflow} ${githubActions.workflowPath}.`,
+                `Package script: ${githubActions.packageScript} scripts.evidrift:check (${githubActions.packageManager}).`,
+                ...(githubActions.workflow === 'preserved'
+                  ? ['Existing workflow was preserved; add the Evidrift step manually.']
+                  : []),
+                ...(githubActions.packageScript === 'preserved'
+                  ? ['Existing scripts.evidrift:check was preserved.']
+                  : []),
+              ]),
           '',
           'Next:',
           '  1. Connect your coding agent: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/mcp.md',
@@ -329,17 +382,26 @@ export async function runCli(argv: string[]): Promise<number> {
       return 0;
     }
     case 'check': {
-      ensureOptions(parsed, ['format', 'root']);
+      ensureOptions(parsed, ['annotations', 'format', 'root']);
       if (parsed.positionals.length > 0) {
         throw new Error('evidrift check does not accept positional arguments.');
       }
       const format = checkOutputFormat(parsed);
+      const annotations = checkAnnotations(parsed);
       const results =
         format === 'json'
           ? await checkRepository(repoRoot)
           : await withTerminalProgress('Revalidating Evidrift evidence…', () =>
               checkRepository(repoRoot),
             );
+      const renderedAnnotations = annotations === 'github' ? renderGitHubAnnotations(results) : '';
+      if (renderedAnnotations.length > 0) {
+        if (format === 'json') {
+          console.error(renderedAnnotations);
+        } else {
+          console.log(renderedAnnotations);
+        }
+      }
       console.log(
         format === 'json' ? renderCheckReport(results) : renderCheck(results, renderOptions),
       );

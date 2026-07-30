@@ -15,6 +15,10 @@ inputs:
     description: Output format, text or json.
     required: false
     default: text
+  annotations:
+    description: GitHub workflow annotations, github or none.
+    required: false
+    default: github
 
 runs:
   using: composite
@@ -23,5 +27,6 @@ runs:
       shell: bash
       env:
         EVIDRIFT_ACTION_FORMAT: ${{ inputs.format }}
+        EVIDRIFT_ACTION_ANNOTATIONS: ${{ inputs.annotations }}
         EVIDRIFT_ACTION_ROOT: ${{ inputs.root }}
       run: node "$GITHUB_ACTION_PATH/scripts/run-action.mjs"

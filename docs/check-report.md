@@ -7,7 +7,7 @@
   "schemaVersion": 1,
   "tool": {
     "name": "evidrift",
-    "version": "0.4.0"
+    "version": "0.4.1"
   },
   "command": "check",
   "exitCode": 0,

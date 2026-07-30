@@ -175,6 +175,11 @@ test('flagship documentation exposes scope, safety boundaries, and reproducible 
   assert.match(architecture, /ReproMin never enters `checkRepository`/u);
   assert.match(architecture, /MCP server and `evidrift check` cannot trigger HTTP replay/u);
   for (const use of ciGuide.matchAll(/^\s*uses:\s*(\S+)$/gmu)) {
-    assert.match(use[1] ?? '', /@[a-f0-9]{40}$/u, `Documented Action is not pinned: ${use[1]}`);
+    const reference = use[1] ?? '';
+    if (reference.startsWith('bm1016bm-svg/evidrift@')) {
+      assert.equal(reference, `bm1016bm-svg/evidrift@v${EVIDRIFT_VERSION}`);
+    } else {
+      assert.match(reference, /@[a-f0-9]{40}$/u, `Documented Action is not pinned: ${reference}`);
+    }
   }
 });

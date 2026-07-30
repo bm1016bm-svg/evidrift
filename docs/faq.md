@@ -40,4 +40,4 @@ Contract checks do not. TypeScript evidence is read from installed declaration f
 
 ## What does Evidrift not support yet?
 
-Evidrift v0.4.0 does not support cURL import, remote replay, YAML, remote OpenAPI `$ref`, global-minimum or root-cause claims, semantic equivalence, cloud storage, a Dashboard, automatic repair, or LLM-as-a-judge CI gates.
+Evidrift v0.4.1 does not support cURL import, remote replay, YAML, remote OpenAPI `$ref`, global-minimum or root-cause claims, semantic equivalence, cloud storage, a Dashboard, automatic repair, or LLM-as-a-judge CI gates.

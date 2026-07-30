@@ -14,6 +14,14 @@ npm run uat
 
 `npm run verify` runs formatting, lint, typecheck, all automated tests, the end-to-end smoke test, and a check of this repository's committed Receipt. `npm run uat` isolates the user-facing acceptance cases.
 
+Local v0.4.1 GitHub onboarding and annotation checkpoint on 2026-07-30:
+
+- Platform: Windows, Node.js `v24.13.0`, npm `11.6.2`.
+- Automated result: `npm test` passed 96/96 tests with 0 failures and 0 skips, then passed the smoke test. Formatting, lint, typecheck, repository Receipt validation, and release metadata alignment at `v0.4.1` also passed through `npm run verify`.
+- Onboarding result: isolated npm, pnpm, and modern Yarn fixtures generated read-only pull-request workflows with the expected locked install command. Repeated npm initialization produced byte-identical configuration; conflicting user scripts and workflows were preserved.
+- Annotation result: a real TypeScript signature drift emitted a GitHub error at `app/src/index.ts:2`. Text mode wrote the workflow command to standard output; JSON mode kept valid JSON on standard output and wrote the annotation to standard error.
+- Cross-platform gate: the repository CI matrix covers `ubuntu-latest` and `windows-latest` with Node.js 22 and 24. This local Windows result does not claim that the pending clean-checkout GitHub Actions runs or a live PR annotation have passed.
+
 Local v0.4.0 ReproMin release checkpoint on 2026-07-26:
 
 - Platform: Windows, Node.js `v24.13.0`, npm `11.6.2`.

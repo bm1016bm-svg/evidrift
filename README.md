@@ -82,6 +82,16 @@ Initialize the current repository without a global install, account, API key, or
 npx --yes evidrift@latest init
 ```
 
+To add an idempotent pull-request workflow with file-and-line annotations:
+
+```bash
+npx --yes evidrift@latest init --github-actions
+```
+
+The initializer detects npm, pnpm, or Yarn, adds `scripts.evidrift:check`, and creates
+`.github/workflows/evidrift.yml`. Existing scripts and workflows are reported and preserved
+instead of being overwritten.
+
 To pin Evidrift for a team or CI workflow:
 
 ```bash
@@ -170,24 +180,35 @@ Each Receipt stores the claim and affected code plus one deterministic contract:
 
 ## Add It to CI
 
-Pin Evidrift as a development dependency and expose one stable package script:
+Generate the package script and read-only pull-request workflow:
+
+```bash
+npx evidrift init --github-actions
+```
+
+The generated package script pins the current Evidrift release:
 
 ```json
 {
   "scripts": {
-    "evidrift:check": "evidrift check"
+    "evidrift:check": "npx --yes evidrift@0.4.1 check"
   }
 }
 ```
 
-After `npm ci`, make that script a required CI step:
+Run the same pinned check locally with `npm run evidrift:check`.
 
-```yaml
-- name: Revalidate Evidrift receipts
-  run: npm run evidrift:check
+The generated workflow installs locked repository dependencies with lifecycle scripts disabled,
+then runs the Marketplace Action. Contract mismatches and integrity failures become PR errors at
+the affected file and line; source-change and unavailable-evidence results become warnings.
+
+```bash
+evidrift check --annotations github
 ```
 
-The complete [GitHub Actions setup](docs/ci.md) uses read-only permissions, locked npm dependencies, and commit-pinned Actions.
+With `--format json`, GitHub workflow commands are written to standard error so standard output
+remains valid JSON. The complete [GitHub Actions setup](docs/ci.md) documents the generated
+workflow, permissions, package-manager behavior, and manual setup.
 
 The root `action.yml` provides a Marketplace-ready contract check. It runs only the
 network-free contract workflow; ReproMin replay is never triggered by that Action.
@@ -262,11 +283,11 @@ No. It detects deterministic evidence drift and Receipt tampering. It does not p
 ## CLI
 
 ```text
-evidrift init
+evidrift init [--github-actions]
 evidrift record --project <path> --package <name> --symbol <name> \
   [--parameter <name>] [--overload <number>] --claim <text> --code <path[:line]>
 evidrift record --json <path> --pointer <RFC6901> --claim <text> --code <path[:line]>
-evidrift check [--format text|json]
+evidrift check [--format text|json] [--annotations none|github]
 evidrift diff
 evidrift explain <receipt-id>
 evidrift demo

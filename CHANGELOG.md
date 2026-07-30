@@ -4,6 +4,19 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-07-30
+
+### Added
+
+- `evidrift init --github-actions` detects npm, pnpm, or Yarn, adds an idempotent `evidrift:check` package script, and creates a read-only pull-request workflow without overwriting existing user configuration.
+- `evidrift check --annotations github` emits escaped GitHub workflow commands for blocking errors and non-blocking warnings while keeping JSON output machine-readable.
+- The Marketplace Action enables file-and-line PR annotations by default through its new `annotations` input.
+
+### Changed
+
+- Generated workflows install repository dependencies with lifecycle scripts disabled before revalidating evidence.
+- Package, CLI, Action, and MCP Registry metadata now align on `0.4.1`.
+
 ## [0.4.0] - 2026-07-26
 
 ### Added

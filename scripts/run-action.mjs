@@ -15,6 +15,10 @@ const format = process.env.EVIDRIFT_ACTION_FORMAT ?? 'text';
 if (format !== 'text' && format !== 'json') {
   throw new Error('Action input format must be text or json.');
 }
+const annotations = process.env.EVIDRIFT_ACTION_ANNOTATIONS ?? 'github';
+if (annotations !== 'github' && annotations !== 'none') {
+  throw new Error('Action input annotations must be github or none.');
+}
 const root = process.env.EVIDRIFT_ACTION_ROOT ?? '.';
 if (!root || /[\u0000-\u001f\u007f-\u009f]/u.test(root)) {
   throw new Error('Action input root must be non-empty and contain no control characters.');
@@ -62,6 +66,8 @@ const result = spawnSync(
     targetRoot,
     '--format',
     format,
+    '--annotations',
+    annotations,
   ],
   {
     cwd: actionRoot,

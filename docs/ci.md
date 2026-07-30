@@ -16,22 +16,33 @@ use the package workflow below; never reference a development branch from a trus
 
 ## Package script
 
-Install Evidrift as a development dependency and expose a stable command for local development and CI:
+Generate the package script and pull-request workflow together:
 
 ```bash
-npm install --save-dev evidrift
-npx evidrift init
+npx --yes evidrift@latest init --github-actions
 ```
+
+The command detects npm, pnpm, or Yarn from `packageManager` and lockfiles. It initializes
+`.evidrift/`, adds the following version-pinned script, and creates
+`.github/workflows/evidrift.yml`:
 
 ```json
 {
   "scripts": {
-    "evidrift:check": "evidrift check"
+    "evidrift:check": "npx --yes evidrift@0.4.1 check"
   }
 }
 ```
 
-Commit the resulting package lock, package manifest, and `.evidrift/` files.
+Run the same pinned command locally with:
+
+```bash
+npm run evidrift:check
+```
+
+Existing `scripts.evidrift:check` and `.github/workflows/evidrift.yml` content is never
+overwritten. The initializer reports `preserved` so the owner can merge configuration manually.
+Commit the package manifest, workflow, and `.evidrift/` files.
 
 ## Complete workflow
 
@@ -64,10 +75,32 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Revalidate Evidrift receipts
-        run: npm run evidrift:check
+        uses: bm1016bm-svg/evidrift@v0.4.1
+        with:
+          annotations: github
 ```
 
 The workflow grants read-only repository access. It installs from the committed npm lockfile, does not execute dependency lifecycle scripts, and pins third-party Actions to complete commit SHAs.
+
+The generated workflow uses the matching Evidrift release tag because the release commit is not
+known to the package at generation time. Repositories with stricter supply-chain policy should
+replace it with the full commit SHA for that tag.
+
+## Pull-request annotations
+
+The Action enables annotations by default. `contract_mismatch` and `integrity_error` results are
+GitHub errors; `source_changed` and `unverifiable` results are warnings. When a Receipt has an
+affected code location, the annotation points to that repository-relative file and optional line.
+
+For a custom workflow or local Action test:
+
+```bash
+npx evidrift check --annotations github
+```
+
+Set the Action input to `annotations: none`, or pass `--annotations none`, to disable workflow
+commands. In JSON mode, annotation commands are written to standard error, preserving the
+JSON-only standard output contract of `--format json`.
 
 ## Result policy
 
