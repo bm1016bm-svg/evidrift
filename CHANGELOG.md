@@ -4,6 +4,11 @@ All notable changes are documented here. The project follows [Semantic Versionin
 
 ## [Unreleased]
 
+### Added
+
+- A reproducible React 18-to-19 `useRef` contract-drift lab using exact `@types/react` versions,
+  disabled lifecycle scripts, installed-version verification, and an expected Evidrift failure.
+
 ## [0.4.1] - 2026-07-30
 
 ### Added

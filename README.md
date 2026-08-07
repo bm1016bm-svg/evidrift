@@ -64,6 +64,26 @@ The command creates a disposable local fixture, records the optional `options` p
 
 **If that is a failure you want caught before merge, [star Evidrift on GitHub](https://github.com/bm1016bm-svg/evidrift).**
 
+## Real-world Lab — React 19 `useRef`
+
+The synthetic demo is fast; this source-repository lab proves the same workflow against a real,
+documented ecosystem change. React's official upgrade guide says React 19 makes the first
+`useRef` argument required. Evidrift records the no-argument overload from
+`@types/react@18.3.12`, upgrades only that type package to `@types/react@19.0.1`, and reports the
+missing overload:
+
+```bash
+git clone https://github.com/bm1016bm-svg/evidrift.git
+cd evidrift
+npm ci --ignore-scripts
+npm run demo:react-19
+```
+
+Both package versions are exact and verified after installation. The lab disables dependency
+lifecycle scripts, and its final `evidrift check` must return a deterministic contract mismatch.
+See the [reproduction and complete trust boundary](examples/react-19-useref/README.md) and the
+[official React 19 upgrade guide](https://react.dev/blog/2024/04/25/react-19-upgrade-guide#useref-requires-an-argument).
+
 ## Supported Today
 
 | Surface                                         | Deterministic evidence                                               | Status             |
