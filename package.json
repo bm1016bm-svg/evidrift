@@ -71,6 +71,7 @@
     "build": "tsc -p tsconfig.json",
     "check": "node dist/src/cli.js check",
     "demo": "npm run build && node dist/src/cli.js demo",
+    "demo:react-19": "npm run build && node examples/react-19-useref/run-demo.mjs",
     "demo:capture": "npm run build && node scripts/capture-demo.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",

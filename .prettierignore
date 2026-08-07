@@ -3,3 +3,5 @@ dist/
 node_modules/
 package-lock.json
 .evidrift/receipts/*.json
+examples/react-19-useref/.evidrift/
+examples/react-19-useref/node_modules/

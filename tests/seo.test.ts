@@ -137,6 +137,8 @@ test('the first-visit path leads with real lightweight CLI demos', async () => {
   assert.match(readme, /captured CLI transcript/u);
   assert.match(html, /assets\/evidrift-demo\.gif/u);
   assert.match(html, /npx --yes evidrift@latest repro-demo/u);
+  assert.match(html, /npm run demo:react-19/u);
+  assert.match(html, /react-19-upgrade-guide#useref-requires-an-argument/u);
   assert.match(html, /★ Star on GitHub/u);
   assert.match(transcript, /PASS sha256:[a-f0-9]{64}/u);
   assert.match(transcript, /FAIL contract_mismatch sha256:[a-f0-9]{64}/u);

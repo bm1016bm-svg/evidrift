@@ -6,6 +6,7 @@
 
 - ReproMin demo: `npx --yes evidrift@latest repro-demo`
 - Contract-drift demo: `npx --yes evidrift@latest demo`
+- Real React 19 `useRef` drift lab: `npm run demo:react-19` from a source checkout
 - Initialize a repository: `npx --yes evidrift@latest init`
 - Real CLI demo animation: https://bm1016bm-svg.github.io/evidrift/assets/evidrift-demo.gif
 - npm: https://www.npmjs.com/package/evidrift
@@ -38,6 +39,7 @@
 - Receipt schema: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/receipt-schema.md
 - User acceptance tests: https://github.com/bm1016bm-svg/evidrift/blob/main/docs/UAT.md
 - TypeScript overload boss fight: https://github.com/bm1016bm-svg/evidrift/blob/main/examples/boss-fight-test/README.md
+- React 19 `useRef` contract-drift lab: https://github.com/bm1016bm-svg/evidrift/blob/main/examples/react-19-useref/README.md
 - OpenAPI JSON Pointer example: https://github.com/bm1016bm-svg/evidrift/blob/main/examples/json-pointer/README.md
 
 ## Deliberate limits

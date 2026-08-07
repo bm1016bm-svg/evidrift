@@ -380,6 +380,7 @@
         <div class="links">
           <a href="#repro-demo">ReproMin</a>
           <a href="#demo">Drift demo</a>
+          <a href="#react-19">React 19 case</a>
           <a href="#faq">FAQ</a>
           <a lang="zh-Hant" href="./zh-TW/">繁體中文</a>
           <a href="https://github.com/bm1016bm-svg/evidrift">GitHub</a>
@@ -426,6 +427,43 @@ Evidence: 1-minimal under the selected JSON reducers and failure predicate</code
               class="button primary"
               href="https://github.com/bm1016bm-svg/evidrift/blob/main/docs/repro-min.md"
               >Read the safety boundary</a
+            >
+          </div>
+        </section>
+
+        <section id="react-19" aria-labelledby="react-19-title">
+          <div class="eyebrow">Real package / exact versions / documented breaking change</div>
+          <h2 id="react-19-title">Catch the React 19 <code>useRef</code> type break.</h2>
+          <p class="muted">
+            React's official upgrade guide says <code>useRef</code> now requires an argument. This
+            source-repository lab records the no-argument overload in
+            <code>@types/react@18.3.12</code>, installs <code>@types/react@19.0.1</code>, and
+            requires Evidrift to report that the recorded overload disappeared.
+          </p>
+          <pre><code>git clone https://github.com/bm1016bm-svg/evidrift.git
+cd evidrift
+npm ci --ignore-scripts
+npm run demo:react-19</code></pre>
+          <pre
+            aria-label="React 19 contract mismatch"
+          ><code><span class="fail">FAIL contract_mismatch</span>
+Expected signature: useRef&lt;T = undefined&gt;():MutableRefObject&lt;T|undefined&gt;
+Current overloads: useRef&lt;T&gt;(initialValue:T):RefObject&lt;T&gt; | ...
+Action: Review the dependency change and affected code.</code></pre>
+          <p class="muted">
+            The lab pins and verifies both installed versions, disables dependency lifecycle
+            scripts, and runs no React application code.
+          </p>
+          <div class="actions">
+            <a
+              class="button primary"
+              href="https://github.com/bm1016bm-svg/evidrift/tree/main/examples/react-19-useref"
+              >Open the reproduction</a
+            >
+            <a
+              class="button"
+              href="https://react.dev/blog/2024/04/25/react-19-upgrade-guide#useref-requires-an-argument"
+              >React upgrade guide</a
             >
           </div>
         </section>
