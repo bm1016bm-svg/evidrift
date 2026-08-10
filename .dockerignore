@@ -1,0 +1,6 @@
+.git
+.github
+.evidrift
+dist
+node_modules
+npm-debug.log*
