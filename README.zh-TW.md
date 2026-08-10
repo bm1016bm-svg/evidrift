@@ -5,6 +5,7 @@
 [![CI](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml/badge.svg)](https://github.com/bm1016bm-svg/evidrift/actions/workflows/ci.yml)
 [![npm version](https://img.shields.io/npm/v/evidrift.svg)](https://www.npmjs.com/package/evidrift)
 [![Website](https://img.shields.io/badge/docs-GitHub%20Pages-111111.svg)](https://bm1016bm-svg.github.io/evidrift/zh-TW/)
+[![bm1016bm-svg/evidrift MCP server](https://glama.ai/mcp/servers/bm1016bm-svg/evidrift/badges/score.svg)](https://glama.ai/mcp/servers/bm1016bm-svg/evidrift)
 
 > **失敗輸入總是很吵，API drift 卻很安靜。Evidrift 把兩者變成 deterministic evidence。**
 

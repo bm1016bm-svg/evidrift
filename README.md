@@ -6,6 +6,7 @@
 [![npm version](https://img.shields.io/npm/v/evidrift.svg)](https://www.npmjs.com/package/evidrift)
 [![Website](https://img.shields.io/badge/docs-GitHub%20Pages-111111.svg)](https://bm1016bm-svg.github.io/evidrift/)
 [![Indexed on TensorBlock MCP Index](https://mcp-index.tensorblock.co/v1/servers/github-bm1016bm-svg-evidrift-85713ef9/badge.svg)](https://www.tensorblock.co/mcp/servers/github-bm1016bm-svg-evidrift-85713ef9)
+[![bm1016bm-svg/evidrift MCP server](https://glama.ai/mcp/servers/bm1016bm-svg/evidrift/badges/score.svg)](https://glama.ai/mcp/servers/bm1016bm-svg/evidrift)
 
 > **Failures arrive noisy. APIs drift quietly. Evidrift turns both into deterministic evidence.**
 
